@@ -1,0 +1,5 @@
+{
+  "aiCommit.command.generate": "AI Commit：生成提交信息",
+  "aiCommit.command.openConfigCenter": "AI Commit：打开配置中心",
+  "aiCommit.command.showModels": "AI Commit：显示可用模型"
+}

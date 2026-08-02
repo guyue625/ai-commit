@@ -1,0 +1,74 @@
+<h2>明确区分“当前生效”与“正在查看”</h2>
+<p class="subtitle">示例中正在编辑 Anthropic，但插件生成提交信息时仍使用顶部标明的 OpenAI。只有点击“保存并启用 Anthropic”才会切换。</p>
+
+<div class="mockup">
+  <div class="mockup-header">AI Commit · 配置中心</div>
+  <div class="mockup-body" style="background:#181818;color:#ddd;padding:18px">
+    <div style="border:1px solid #2f7d46;background:#17271d;border-radius:7px;padding:15px 18px;margin-bottom:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div><span style="color:#89d185;font-weight:700">● 当前生效配置</span><span style="font-size:11px;color:#aaa;margin-left:10px">生成提交信息时实际使用</span></div>
+        <span style="font-size:11px;color:#89d185">连接正常 · 刚刚测试</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 2.2fr 1.2fr 1.4fr;gap:14px;font-size:12px">
+        <div><div style="color:#899489;font-size:10px;margin-bottom:3px">服务商</div><strong>OpenAI</strong></div>
+        <div><div style="color:#899489;font-size:10px;margin-bottom:3px">BASE URL</div><strong>https://api.openai.com/v1</strong></div>
+        <div><div style="color:#899489;font-size:10px;margin-bottom:3px">模型</div><strong>gpt-5-mini</strong></div>
+        <div><div style="color:#899489;font-size:10px;margin-bottom:3px">API KEY</div><strong>个人 OpenAI · sk-••••7K2P</strong></div>
+      </div>
+    </div>
+
+    <div style="display:flex;min-height:500px;border:1px solid #3d3d3d;border-radius:6px;overflow:hidden">
+      <aside style="width:235px;background:#202020;border-right:1px solid #414141;padding:16px 11px;box-sizing:border-box">
+        <div style="font-size:11px;color:#969696;letter-spacing:.08em;padding:2px 9px 8px">AI 服务商</div>
+        <div style="padding:11px 10px;margin-bottom:6px;background:#272727;border-radius:4px">
+          <div style="display:flex;justify-content:space-between"><strong>OpenAI</strong><span style="font-size:10px;color:#89d185">● 当前生效</span></div>
+          <div style="font-size:11px;color:#aaa;margin-top:4px">个人 OpenAI · sk-••••7K2P</div>
+        </div>
+        <div style="padding:11px 10px;border-left:3px solid #4daafc;background:#094771;border-radius:4px">
+          <div style="display:flex;justify-content:space-between"><strong>Anthropic</strong><span style="font-size:10px;color:#ccc">正在查看</span></div>
+          <div style="font-size:11px;color:#bbb;margin-top:4px">公司 Claude · sk-ant-••••91MX</div>
+        </div>
+        <div style="font-size:11px;color:#969696;letter-spacing:.08em;padding:22px 9px 8px">提交设置</div>
+        <div style="padding:9px">通用设置</div>
+        <div style="padding:9px">自定义提示词</div>
+      </aside>
+
+      <main style="flex:1;padding:25px 31px;box-sizing:border-box">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:21px">
+          <div><div style="font-size:22px;font-weight:650">Anthropic</div><div style="font-size:11px;color:#aaa;margin-top:4px">已保存，但当前未启用</div></div>
+          <span style="padding:5px 9px;border:1px solid #666;border-radius:12px;font-size:11px;color:#bbb">○ 非当前配置</span>
+        </div>
+
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px">配置名称</div>
+        <div style="background:#2b2b2b;border:1px solid #656565;padding:9px;border-radius:4px;margin-bottom:16px">公司 Claude</div>
+
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px">Base URL</div>
+        <div style="display:flex;gap:7px;margin-bottom:5px"><div style="flex:1;background:#2b2b2b;border:1px solid #656565;padding:9px;border-radius:4px">https://api.anthropic.com</div><div style="padding:9px;background:#333;border:1px solid #555;border-radius:4px">恢复默认</div></div>
+        <div style="font-size:10px;color:#888;margin-bottom:16px">支持自定义 Anthropic 兼容网关</div>
+
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px">API Key</div>
+        <div style="display:flex;gap:7px;margin-bottom:5px"><div style="flex:1;background:#2b2b2b;border:1px solid #656565;padding:9px;border-radius:4px">sk-ant-••••••••••••91MX</div><div style="padding:9px 12px;background:#333;border:1px solid #555;border-radius:4px">更换</div></div>
+        <div style="font-size:10px;color:#89d185;margin-bottom:16px">✓ SecretStorage 已安全保存 · 完整 Key 不会显示</div>
+
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px">模型</div>
+        <div style="display:flex;gap:7px;margin-bottom:20px"><div style="flex:1;background:#2b2b2b;border:1px solid #656565;padding:9px;border-radius:4px">claude-sonnet-4-5 <span style="float:right">⌄</span></div><div style="padding:9px;background:#333;border:1px solid #555;border-radius:4px">↻ 获取模型</div></div>
+
+        <div style="border-top:1px solid #3d3d3d;padding-top:18px;display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:11px;color:#aaa">保存修改不会自动改变当前服务商</span>
+          <div style="display:flex;gap:8px"><span style="padding:9px 12px;background:#333;border:1px solid #555;border-radius:4px">测试连接</span><span style="padding:9px 12px;background:#0e639c;color:#fff;border-radius:4px">保存并启用 Anthropic</span></div>
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:22px">
+  <div class="option" data-choice="approve-active-clarity" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content"><h3>现在足够清楚</h3><p>继续确定底层配置与安全存储设计。</p></div>
+  </div>
+  <div class="option" data-choice="revise-active-clarity" onclick="toggleSelect(this)">
+    <div class="letter">↻</div>
+    <div class="content"><h3>仍需调整</h3><p>回到终端说明哪里还不够直观。</p></div>
+  </div>
+</div>

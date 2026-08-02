@@ -1,0 +1,90 @@
+<h2>多渠道配置管理</h2>
+<p class="subtitle">每一条都是用户主动创建的命名配置。完整 Base URL 可见，Key 只展示备注与末四位。</p>
+
+<div class="mockup">
+  <div class="mockup-header">AI Commit · 配置中心</div>
+  <div class="mockup-body" style="background:#181818;color:#ddd;padding:18px">
+    <div style="border:1px solid #2f7d46;background:#17271d;border-radius:7px;padding:14px 17px;margin-bottom:18px">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <span style="font-size:12px;color:#89d185;font-weight:700">● 当前生效</span>
+          <span style="font-size:18px;font-weight:700;margin-left:14px">OpenAI / DeepSeek 个人</span>
+        </div>
+        <span style="font-size:11px;color:#89d185">连接正常 · 518 ms</span>
+      </div>
+      <div style="display:grid;grid-template-columns:2.4fr 1.2fr 1.4fr;gap:16px;margin-top:11px;font-size:12px">
+        <div><span style="color:#899489">Base URL　</span><strong>https://api.deepseek.com/v1</strong></div>
+        <div><span style="color:#899489">模型　</span><strong>deepseek-chat</strong></div>
+        <div><span style="color:#899489">Key　</span><strong>个人 DeepSeek · sk-••••2A9F</strong></div>
+      </div>
+    </div>
+
+    <div style="display:flex;min-height:535px;border:1px solid #3d3d3d;border-radius:6px;overflow:hidden">
+      <aside style="width:225px;background:#202020;border-right:1px solid #414141;padding:17px 11px;box-sizing:border-box">
+        <div style="font-size:11px;color:#969696;letter-spacing:.08em;padding:2px 9px 8px">AI 服务商</div>
+        <div style="padding:12px 10px;border-left:3px solid #4daafc;background:#094771;border-radius:4px;margin-bottom:6px">
+          <div style="display:flex;justify-content:space-between"><strong>OpenAI</strong><span style="font-size:10px">3 个渠道</span></div>
+          <div style="font-size:11px;color:#b7d9ed;margin-top:4px">DeepSeek 个人正在生效</div>
+        </div>
+        <div style="padding:12px 10px;background:#292929;border-radius:4px">
+          <div style="display:flex;justify-content:space-between"><strong>Anthropic</strong><span style="font-size:10px;color:#bbb">2 个渠道</span></div>
+          <div style="font-size:11px;color:#aaa;margin-top:4px">均已保存</div>
+        </div>
+        <div style="font-size:11px;color:#969696;letter-spacing:.08em;padding:22px 9px 8px">提交设置</div>
+        <div style="padding:9px">通用设置</div>
+        <div style="padding:9px">自定义提示词</div>
+      </aside>
+
+      <main style="flex:1;padding:25px 29px;box-sizing:border-box;min-width:0">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:21px">
+          <div><div style="font-size:22px;font-weight:700">OpenAI 渠道配置</div><div style="font-size:11px;color:#aaa;margin-top:5px">OpenAI 官方及兼容 API，共 3 项</div></div>
+          <span style="padding:9px 13px;background:#0e639c;color:white;border-radius:4px">＋ 新增渠道配置</span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.05fr 1.9fr 1fr 1.15fr .95fr;gap:10px;padding:0 12px 7px;font-size:10px;color:#969696;text-transform:uppercase">
+          <div>配置名称</div><div>Base URL</div><div>模型</div><div>API Key</div><div>操作</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.05fr 1.9fr 1fr 1.15fr .95fr;gap:10px;align-items:center;padding:14px 12px;background:#183021;border:1px solid #2f7d46;border-radius:5px;margin-bottom:9px;font-size:11px">
+          <div><strong style="font-size:12px">DeepSeek 个人</strong><div style="color:#89d185;margin-top:4px">● 当前生效</div></div>
+          <div style="word-break:break-all">https://api.deepseek.com/v1</div>
+          <div>deepseek-chat</div>
+          <div>个人 DeepSeek<br><span style="color:#aaa">sk-••••2A9F</span></div>
+          <div><span style="color:#4daafc">编辑</span>　<span style="color:#aaa">•••</span></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.05fr 1.9fr 1fr 1.15fr .95fr;gap:10px;align-items:center;padding:14px 12px;background:#252525;border:1px solid #414141;border-radius:5px;margin-bottom:9px;font-size:11px">
+          <div><strong style="font-size:12px">OpenAI 官方</strong><div style="color:#aaa;margin-top:4px">上次测试正常</div></div>
+          <div style="word-break:break-all">https://api.openai.com/v1</div>
+          <div>gpt-5-mini</div>
+          <div>个人 OpenAI<br><span style="color:#aaa">sk-••••7K2P</span></div>
+          <div><span style="color:#4daafc">启用</span>　<span style="color:#4daafc">编辑</span></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1.05fr 1.9fr 1fr 1.15fr .95fr;gap:10px;align-items:center;padding:14px 12px;background:#252525;border:1px solid #414141;border-radius:5px;margin-bottom:18px;font-size:11px">
+          <div><strong style="font-size:12px">公司网关</strong><div style="color:#dcdcaa;margin-top:4px">尚未测试</div></div>
+          <div style="word-break:break-all">https://ai.company.example/v1</div>
+          <div>company-chat</div>
+          <div>公司 Token<br><span style="color:#aaa">key-••••91MX</span></div>
+          <div><span style="color:#4daafc">启用</span>　<span style="color:#4daafc">编辑</span></div>
+        </div>
+
+        <div style="border:1px solid #414141;background:#202020;border-radius:5px;padding:13px 15px;font-size:11px;color:#aaa;line-height:1.6">
+          <strong style="color:#ddd">管理规则</strong><br>
+          “新增”会创建独立配置；“编辑”只修改当前条目；不会自动保存每次输入过的旧 Key。删除前会确认，正在生效的配置不能直接删除。
+        </div>
+      </main>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:22px">
+  <div class="option" data-choice="approve-profile-list" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content"><h3>渠道列表符合预期</h3><p>继续设计新增、编辑和启用流程。</p></div>
+  </div>
+  <div class="option" data-choice="revise-profile-list" onclick="toggleSelect(this)">
+    <div class="letter">↻</div>
+    <div class="content"><h3>需要调整列表</h3><p>回到终端说明还想看到哪些信息或操作。</p></div>
+  </div>
+</div>

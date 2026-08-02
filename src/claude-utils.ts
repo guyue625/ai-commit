@@ -1,31 +1,43 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { ConfigKeys, ConfigurationManager } from './config';
 import { Logger } from './logger';
+import {
+  buildAnthropicClientOptions,
+  RuntimeAnthropicConfig
+} from './providers/runtime-provider-config';
 
 /**
  * Sends a chat completion request to Claude using the Anthropic API.
  * @param {Array<Object>} messages - The messages to send to Claude.
  * @returns {Promise<string>} - A promise that resolves to the API response.
  */
-export async function ClaudeAPI(messages: any[]): Promise<string> {
+export async function ClaudeAPI(
+  messages: any[],
+  runtimeConfig?: RuntimeAnthropicConfig
+): Promise<string> {
   try {
     const configManager = ConfigurationManager.getInstance();
-    const apiKey = configManager.getConfig<string>(ConfigKeys.CLAUDE_API_KEY, '');
+    const apiKey =
+      runtimeConfig?.apiKey ??
+      configManager.getConfig<string>(ConfigKeys.CLAUDE_API_KEY, '');
 
     if (!apiKey || apiKey.trim() === '') {
       throw new Error('Claude API Key not configured');
     }
 
-    const model = configManager.getConfig<string>(
-      ConfigKeys.CLAUDE_MODEL,
-      'claude-sonnet-4-5'
-    );
-    const temperature = configManager.getConfig<number>(
-      ConfigKeys.CLAUDE_TEMPERATURE,
-      0.7
-    );
+    const model =
+      runtimeConfig?.model ??
+      configManager.getConfig<string>(
+        ConfigKeys.CLAUDE_MODEL,
+        'claude-sonnet-4-5'
+      );
+    const temperature =
+      runtimeConfig?.options.temperature ??
+      configManager.getConfig<number>(ConfigKeys.CLAUDE_TEMPERATURE, 0.7);
 
-    const anthropic = new Anthropic({ apiKey });
+    const anthropic = new Anthropic(
+      runtimeConfig ? buildAnthropicClientOptions(runtimeConfig) : { apiKey }
+    );
 
     const systemMessage = messages.find((msg) => msg.role === 'system');
     const conversationMessages = messages

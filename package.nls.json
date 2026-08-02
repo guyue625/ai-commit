@@ -1,0 +1,5 @@
+{
+  "aiCommit.command.generate": "AI Commit: Generate Commit Message",
+  "aiCommit.command.openConfigCenter": "AI Commit: Open Config Center",
+  "aiCommit.command.showModels": "AI Commit: Show Available Models"
+}

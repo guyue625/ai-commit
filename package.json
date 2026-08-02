@@ -1,6 +1,6 @@
 {
-  "name": "ai-commit",
-  "displayName": "AI Commit",
+  "name": "lin-ai-commit",
+  "displayName": "Lin AI Commit",
   "description": "Use OpenAI/Gemini/Claude/Azure API to review Git changes, generate conventional commit messages that meet the conventions, simplify the commit process, and keep the commit conventions consistent.",
   "version": "0.1.2",
   "engines": {
@@ -29,22 +29,24 @@
   "publisher": "sitoi",
   "repository": "https://github.com/sitoi/ai-commit",
   "icon": "images/logo.png",
-  "activationEvents": [
-    "onCommand:ai-commit"
-  ],
   "contributes": {
     "commands": [
       {
         "command": "extension.ai-commit",
         "icon": {
-          "dark": "images/icon.svg",
-          "light": "images/icon.svg"
+          "dark": "images/commit-generate.png",
+          "light": "images/commit-generate.png"
         },
-        "title": "AI Commit"
+        "title": "%aiCommit.command.generate%"
+      },
+      {
+        "command": "ai-commit.openConfigCenter",
+        "icon": "$(settings-gear)",
+        "title": "%aiCommit.command.openConfigCenter%"
       },
       {
         "command": "ai-commit.showAvailableModels",
-        "title": "Show Available OpenAI Models"
+        "title": "%aiCommit.command.showModels%"
       }
     ],
     "configuration": {
@@ -103,17 +105,20 @@
         },
         "ai-commit.OPENAI_API_KEY": {
           "default": "",
-          "description": "OpenAI API Key",
+          "description": "Legacy OpenAI API key retained only for automatic migration. Use 'AI Commit: Open Config Center' for new or updated profiles.",
+          "deprecationMessage": "Use 'AI Commit: Open Config Center'. Keys are stored securely in VS Code SecretStorage.",
           "type": "string"
         },
         "ai-commit.OPENAI_BASE_URL": {
           "default": "",
-          "description": "OpenAI BASE URL",
+          "description": "Legacy OpenAI Base URL retained for migration compatibility. Configure custom Base URLs in 'AI Commit: Open Config Center'.",
+          "deprecationMessage": "Use 'AI Commit: Open Config Center' to configure OpenAI-compatible Base URLs.",
           "type": "string"
         },
         "ai-commit.OPENAI_MODEL": {
           "default": "gpt-4o",
-          "description": "OpenAI MODEL, you can select a model from the list by running the 'Show Available OpenAI Models' command",
+          "description": "Legacy OpenAI model retained for migration compatibility. Select a model per profile in 'AI Commit: Open Config Center'.",
+          "deprecationMessage": "Use 'AI Commit: Open Config Center' to configure the model for each profile.",
           "type": "string"
         },
         "ai-commit.AI_COMMIT_SYSTEM_PROMPT": {
@@ -126,12 +131,14 @@
           "default": 0.7,
           "minimum": 0,
           "maximum": 2,
-          "description": "OpenAI temperature setting (0-2). Higher values make output more random, lower values more deterministic."
+          "description": "Legacy OpenAI temperature retained for migration compatibility. Configure it per profile in the Config Center.",
+          "deprecationMessage": "Use 'AI Commit: Open Config Center' to configure OpenAI profile options."
         },
         "ai-commit.OPENAI_API_TYPE": {
           "type": "string",
           "default": "completion",
-          "description": "Choose OpenAI API: Chat Completions API or Responses API",
+          "description": "Legacy OpenAI API type retained for migration compatibility. Configure it per profile in the Config Center.",
+          "deprecationMessage": "Use 'AI Commit: Open Config Center' to configure OpenAI profile options.",
           "enum": ["completion", "response"],
           "enumDescriptions": [
             "Chat Completions API (default)",
@@ -141,7 +148,8 @@
         "ai-commit.OPENAI_REASONING_EFFORT": {
           "type": "string",
           "default": "medium",
-          "description": "Reasoning effort for the Responses API (only applies when OPENAI_API_TYPE is 'response')",
+          "description": "Legacy Responses API reasoning effort retained for migration compatibility. Configure it per profile in the Config Center.",
+          "deprecationMessage": "Use 'AI Commit: Open Config Center' to configure OpenAI profile options.",
           "enum": ["minimal", "low", "medium", "high"],
           "enumDescriptions": [
             "Minimal reasoning effort",
@@ -153,7 +161,8 @@
         "ai-commit.OPENAI_TEXT_VERBOSITY": {
           "type": "string",
           "default": "medium",
-          "description": "Output verbosity for the Responses API — controls max output tokens: low (~1000), medium (~4000), high (~16000)",
+          "description": "Legacy Responses API output verbosity retained for migration compatibility. Configure it per profile in the Config Center.",
+          "deprecationMessage": "Use 'AI Commit: Open Config Center' to configure OpenAI profile options.",
           "enum": ["low", "medium", "high"],
           "enumDescriptions": [
             "Low verbosity (~1000 tokens)",
@@ -191,19 +200,22 @@
         "ai-commit.CLAUDE_API_KEY": {
           "type": "string",
           "default": "",
-          "description": "Claude API Key (optional). Leave empty to use Claude CLI (authenticated via 'claude setup-token'), or provide an Anthropic API key for direct API access."
+          "description": "Legacy Claude API key retained only for automatic migration. Use 'AI Commit: Open Config Center' for Anthropic profiles.",
+          "deprecationMessage": "Use 'AI Commit: Open Config Center'. Keys are stored securely in VS Code SecretStorage."
         },
         "ai-commit.CLAUDE_MODEL": {
           "type": "string",
           "default": "claude-sonnet-4-5-20250929",
-          "description": "Claude Model to use"
+          "description": "Legacy Claude model retained for migration compatibility. Select a model per Anthropic profile in the Config Center.",
+          "deprecationMessage": "Use 'AI Commit: Open Config Center' to configure Anthropic profiles."
         },
         "ai-commit.CLAUDE_TEMPERATURE": {
           "type": "number",
           "default": 0.7,
           "minimum": 0,
           "maximum": 1,
-          "description": "Claude temperature setting (0-1). Controls randomness."
+          "description": "Legacy Claude temperature retained for migration compatibility. Configure it per Anthropic profile in the Config Center.",
+          "deprecationMessage": "Use 'AI Commit: Open Config Center' to configure Anthropic profiles."
         }
       },
       "title": "AI Commit"
@@ -213,23 +225,29 @@
         {
           "command": "extension.ai-commit",
           "group": "navigation"
+        },
+        {
+          "command": "ai-commit.openConfigCenter",
+          "group": "navigation@2"
         }
       ]
     }
   },
   "main": "./dist/extension.js",
   "scripts": {
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true});require('fs').rmSync('out',{recursive:true,force:true})\"",
     "build": "webpack --mode production --devtool hidden-source-map",
-    "compile": "webpack",
-    "compile-tests": "tsc -p . --outDir out",
-    "lint": "eslint src --ext ts",
-    "package": "vsce package --no-dependencies",
-    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "compile": "webpack --mode development",
+    "compile-tests": "tsc -p tsconfig.test.json",
+    "lint": "eslint \"src/**/*.ts\" \"test/**/*.ts\" webpack.config.js --no-error-on-unmatched-pattern",
+    "package": "npm run build && vsce package --no-dependencies",
     "publish": "vsce publish --no-dependencies",
-    "test": "node ./out/test/runTest.js",
+    "test": "npm run test:unit",
+    "test:extension": "npm run compile && npm run compile-tests && node ./out/test/runTest.js",
+    "test:unit": "npm run compile-tests && mocha \"out/test/**/*.test.js\"",
     "vscode:prepublish": "npm run build",
     "watch": "webpack --watch",
-    "watch-tests": "tsc -p . -w --outDir out"
+    "watch-tests": "tsc -p tsconfig.test.json -w"
   },
   "devDependencies": {
     "@types/fs-extra": "^11.0.4",
@@ -240,6 +258,7 @@
     "@typescript-eslint/eslint-plugin": "^8.59.2",
     "@typescript-eslint/parser": "^8.59.2",
     "@vscode/test-electron": "^2.5.2",
+    "@vscode/vsce": "^3.9.2",
     "eslint": "^10.3.0",
     "glob": "^13.0.6",
     "mocha": "^11.7.5",

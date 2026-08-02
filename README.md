@@ -4,7 +4,7 @@
 
 <img height="120" src="https://github.com/Sitoi/ai-commit/blob/main/images/logo.png?raw=true">
 
-<h1>AI Commit</h1>
+<h1>Lin AI Commit</h1>
 
 Use OpenAI / Azure OpenAI / DeepSeek / Grok / Gemini / Claude (Anthropic) API to review Git changes, generate conventional commit messages that meet the conventions, simplify the commit process, and keep the commit conventions consistent.
 
@@ -21,13 +21,14 @@ Use OpenAI / Azure OpenAI / DeepSeek / Grok / Gemini / Claude (Anthropic) API to
 [![][avarage-rating-shield]][avarage-rating-link]
 [![][github-license-shield]][github-license-link]
 
-![](https://github.com/sitoi/ai-commit/blob/main/aicommit.gif?raw=true)
-
 </div>
 
 ## ✨ Features
 
 - 🤯 Support generating commit messages based on git diffs using OpenAI / Azure OpenAI / DeepSeek / Grok / Gemini / Claude (Anthropic) API.
+- 🎛️ Manage multiple named OpenAI and Anthropic channel profiles in a native VS Code Config Center.
+- 🔐 Keep full API keys in VS Code SecretStorage and show only masked key hints in the UI.
+- ☁️ Sync profile metadata through Settings Sync, with optional end-to-end encrypted key sync.
 - 🧠 Support OpenAI Responses API with configurable reasoning effort and output verbosity.
 - 🗺️ Support multi-language commit messages.
 - 😜 Support adding Gitmoji.
@@ -39,46 +40,46 @@ Use OpenAI / Azure OpenAI / DeepSeek / Grok / Gemini / Claude (Anthropic) API to
 1. Search for "AI Commit" in VSCode and click the "Install" button.
 2. Install it directly from the [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Sitoi.ai-commit).
 
+For a local build of this fork, run `npm install` and `npm run package`, then install the generated `.vsix` from VS Code's **Install from VSIX...** command.
+
 > **Note**\
 > Make sure your node version >= 16
 
 ## 🤯 Usage
 
 1. Ensure that you have installed and enabled the "AI Commit" extension.
-2. In VSCode settings, locate the "ai-commit" configuration options and configure them as needed.
-3. Make changes in your project and add the changes to the staging area (git add).
-4. (Optional) If you want to provide additional context for the commit message, type it in the Source Control panel's message input box before clicking the AI Commit button.
-5. Next to the commit message input box in the "Source Control" panel, click the "AI Commit" icon button. After clicking, the extension will generate a commit message (considering any additional context if provided) and populate it in the input box.
-6. Review the generated commit message, and if you are satisfied, proceed to commit your changes.
+2. Run **AI Commit: Open Config Center**, or click the settings icon in the Source Control title bar.
+3. Create an OpenAI or Anthropic channel profile, enter its Base URL, model, and API key, then choose **Save and Activate**.
+4. Make changes in your project and add the changes to the staging area (`git add`).
+5. Optionally type extra context in the Source Control message input before running AI Commit.
+6. Click the AI Commit icon. The generated message is written back to the same Source Control input box.
+7. Review the generated message and commit when ready.
 
 > **Note**\
 > If the code exceeds the maximum token length, consider adding it to the staging area in batches.
 
-### ⚙️ Configuration
+### ⚙️ Config Center
 
-> **Note** Version >= 0.0.5 Don't need to configure `EMOJI_ENABLED` and `FULL_GITMOJI_SPEC`, Default Prompt is [prompt/with_gitmoji.md](./prompt/with_gitmoji.md), If don't need to use `Gitmoji`. Please set `SYSTEM_PROMPT` to your custom prompt, please refer to [prompt/without_gitmoji.md](./prompt/without_gitmoji.md).
+The Config Center is the recommended way to configure OpenAI and Anthropic:
 
-In the VSCode settings, locate the "ai-commit" configuration options and configure them as needed:
+- Save multiple named profiles for each provider.
+- Use a custom Base URL for both OpenAI-compatible and Anthropic-compatible channels.
+- See the exact active provider, profile name, Base URL, model, and masked key hint at all times.
+- View a different provider without changing the active profile. Only **Activate** or **Save and Activate** switches the current workspace.
+- Fetch available models explicitly, or enter a model manually when an endpoint does not support model listing.
+- Keep profile metadata globally available while selecting a different active profile per workspace.
 
-| Configuration           |  Type  |          Default           | Required |                                                               Notes                                                                |
-| :---------------------- | :----: | :------------------------: | :------: | :--------------------------------------------------------------------------------------------------------------------------------: |
-| AI_PROVIDER             | string |           openai           |   Yes    |                                        AI Provider to use: `openai`, `gemini`, or `claude`                                         |
-| OPENAI_API_KEY          | string |            None            |   Yes    |               Required when `AI_PROVIDER` is `openai`. [OpenAI token](https://platform.openai.com/account/api-keys)                |
-| OPENAI_BASE_URL         | string |            None            |    No    |                       If using Azure, use: `https://{resource}.openai.azure.com/openai/deployments/{model}`                        |
-| OPENAI_MODEL            | string |           gpt-4o           |   Yes    |                     OpenAI model. Run the `Show Available OpenAI Models` command to pick from available models                     |
-| AZURE_API_VERSION       | string |            None            |    No    |                                                      Azure API version string                                                      |
-| OPENAI_TEMPERATURE      | number |            0.7             |    No    |               Controls randomness. Range: 0–2. Lower = more focused, Higher = more creative. (Chat Completions only)               |
-| OPENAI_API_TYPE         | string |         completion         |    No    |                             Choose API: `completion` (Chat Completions) or `response` (Responses API)                              |
-| OPENAI_REASONING_EFFORT | string |           medium           |    No    |     Reasoning effort for Responses API: `minimal`, `low`, `medium`, `high`. Only applies when `OPENAI_API_TYPE` is `response`      |
-| OPENAI_TEXT_VERBOSITY   | string |           medium           |    No    |             Output verbosity for Responses API: `low` (~1000 tokens), `medium` (~4000 tokens), `high` (~16000 tokens)              |
-| GEMINI_API_KEY          | string |            None            |   Yes    |                Required when `AI_PROVIDER` is `gemini`. [Gemini API key](https://makersuite.google.com/app/apikey)                 |
-| GEMINI_MODEL            | string |    gemini-2.0-flash-001    |   Yes    |                                                        Gemini model to use                                                         |
-| GEMINI_TEMPERATURE      | number |            0.7             |    No    |                           Controls randomness. Range: 0–2. Lower = more focused, Higher = more creative                            |
-| CLAUDE_API_KEY          | string |            None            |    No    | Anthropic API key. Leave empty to use Claude CLI (authenticated via `claude setup-token`). Required when `AI_PROVIDER` is `claude` |
-| CLAUDE_MODEL            | string | claude-sonnet-4-5-20250929 |    No    |                                                        Claude model to use                                                         |
-| CLAUDE_TEMPERATURE      | number |            0.7             |    No    |                                                  Controls randomness. Range: 0–1                                                   |
-| AI_COMMIT_LANGUAGE      | string |          English           |   Yes    |                                                       Supports 19 languages                                                        |
-| SYSTEM_PROMPT           | string |            None            |    No    |                                                        Custom system prompt                                                        |
+Full keys are stored in VS Code SecretStorage. They are never written to `settings.json`, returned to the Webview, or shown in logs.
+
+### Encrypted key sync
+
+Profile metadata participates in VS Code Settings Sync. Key sync is optional and disabled by default. When enabled, all local profile keys are encrypted with scrypt and AES-256-GCM before the encrypted vault is placed in Settings Sync. The sync password is never uploaded. On another device, enter that password once to restore all keys to that device's SecretStorage.
+
+### Prompt and legacy compatibility
+
+The built-in commit Prompt and generation flow are unchanged. A non-empty custom Prompt still replaces the built-in Prompt; an empty value continues to use the built-in Prompt.
+
+Existing plaintext OpenAI and Claude settings are imported transactionally on first use and cleared only after their keys have been verified in SecretStorage. Legacy Gemini settings remain available as a compatibility fallback and are not exposed as new Config Center profiles.
 
 ## ⌨️ Local Development
 

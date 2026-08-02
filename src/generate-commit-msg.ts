@@ -9,6 +9,12 @@ import { ProgressHandler } from './utils';
 import { GeminiAPI } from './gemini-utils';
 import { ClaudeAPI } from './claude-utils';
 import { Logger } from './logger';
+import {
+  buildCommitMessages,
+  cleanCommitMessage
+} from './generation/message-helpers';
+import { invokeCommitProvider } from './generation/provider-invocation';
+import { RuntimeProviderConfig } from './providers/runtime-provider-config';
 
 /**
  * Generates a chat completion prompt for the commit message based on the provided diff.
@@ -22,20 +28,11 @@ const generateCommitMessageChatCompletionPrompt = async (
   additionalContext?: string
 ) => {
   const INIT_MESSAGES_PROMPT = await getMainCommitPrompt();
-  const chatContextAsCompletionRequest = [...INIT_MESSAGES_PROMPT];
-
-  if (additionalContext) {
-    chatContextAsCompletionRequest.push({
-      role: 'user',
-      content: `Additional context for the changes:\n${additionalContext}`
-    });
-  }
-
-  chatContextAsCompletionRequest.push({
-    role: 'user',
-    content: diff
-  });
-  return chatContextAsCompletionRequest;
+  return buildCommitMessages(
+    INIT_MESSAGES_PROMPT[0].content,
+    diff,
+    additionalContext
+  );
 };
 
 /**
@@ -69,16 +66,18 @@ export async function getRepo(arg) {
  * @param {any} arg - The input argument containing the root URI of the repository.
  * @returns {Promise<void>} - A promise that resolves when the commit message has been generated and set in the SCM input box.
  */
-export async function generateCommitMsg(arg) {
+export async function generateCommitMsg(
+  arg: unknown,
+  runtimeConfig?: RuntimeProviderConfig
+) {
   return ProgressHandler.withProgress('', async (progress) => {
     try {
       const configManager = ConfigurationManager.getInstance();
       const repo = await getRepo(arg);
 
-      const aiProvider = configManager.getConfig<string>(
-        ConfigKeys.AI_PROVIDER,
-        'openai'
-      );
+      const aiProvider =
+        runtimeConfig?.provider ??
+        configManager.getConfig<string>(ConfigKeys.AI_PROVIDER, 'openai');
       Logger.info(`Using AI provider: ${aiProvider}`);
 
       progress.report({ message: 'Getting staged changes...' });
@@ -115,47 +114,56 @@ export async function generateCommitMsg(arg) {
           : 'Generating commit message...'
       });
       try {
-        let commitMessage: string | undefined;
-
-        if (aiProvider === 'gemini') {
-          const geminiApiKey = configManager.getConfig<string>(
-            ConfigKeys.GEMINI_API_KEY
-          );
-          if (!geminiApiKey) {
-            throw new Error('Gemini API Key not configured');
+        let commitMessage = await invokeCommitProvider(
+          messages as ChatCompletionMessageParam[],
+          runtimeConfig,
+          {
+            getLegacyProvider: () =>
+              configManager.getConfig<string>(ConfigKeys.AI_PROVIDER, 'openai'),
+            getLegacyOpenAIApiType: () =>
+              configManager.getConfig<string>(
+                ConfigKeys.OPENAI_API_TYPE,
+                'completion'
+              ),
+            openAIChat: async (providerMessages, config) => {
+              if (
+                !config &&
+                !configManager.getConfig<string>(ConfigKeys.OPENAI_API_KEY)
+              ) {
+                throw new Error('OpenAI API Key not configured');
+              }
+              return ChatGPTAPI(providerMessages, config);
+            },
+            openAIResponses: async (providerMessages, config) => {
+              if (
+                !config &&
+                !configManager.getConfig<string>(ConfigKeys.OPENAI_API_KEY)
+              ) {
+                throw new Error('OpenAI API Key not configured');
+              }
+              return ResponsesAPI(providerMessages, config);
+            },
+            anthropic: async (providerMessages, config) => {
+              if (
+                !config &&
+                !configManager.getConfig<string>(ConfigKeys.CLAUDE_API_KEY)
+              ) {
+                throw new Error('Claude API Key not configured');
+              }
+              return ClaudeAPI(providerMessages, config);
+            },
+            gemini: async (providerMessages) => {
+              if (!configManager.getConfig<string>(ConfigKeys.GEMINI_API_KEY)) {
+                throw new Error('Gemini API Key not configured');
+              }
+              return GeminiAPI(providerMessages);
+            }
           }
-          commitMessage = await GeminiAPI(messages);
-        } else if (aiProvider === 'claude') {
-          const claudeApiKey = configManager.getConfig<string>(
-            ConfigKeys.CLAUDE_API_KEY
-          );
-          if (!claudeApiKey) {
-            throw new Error('Claude API Key not configured');
-          }
-          commitMessage = await ClaudeAPI(messages);
-        } else {
-          const openaiApiKey = configManager.getConfig<string>(
-            ConfigKeys.OPENAI_API_KEY
-          );
-          if (!openaiApiKey) {
-            throw new Error('OpenAI API Key not configured');
-          }
-          const apiType = configManager.getConfig<string>(
-            ConfigKeys.OPENAI_API_TYPE,
-            'completion'
-          );
-          if (apiType === 'response') {
-            commitMessage = await ResponsesAPI(
-              messages as ChatCompletionMessageParam[]
-            );
-          } else {
-            commitMessage = await ChatGPTAPI(messages as ChatCompletionMessageParam[]);
-          }
-        }
+        );
 
         if (commitMessage) {
           // 清理 think 标签内容
-          commitMessage = commitMessage.replace(/<think>.*?<\/think>/gs, '').trim();
+          commitMessage = cleanCommitMessage(commitMessage);
           Logger.info('Commit message generated successfully');
           scmInputBox.value = commitMessage;
         } else {
@@ -184,7 +192,7 @@ export async function generateCommitMsg(arg) {
           }
         } else if (aiProvider === 'gemini') {
           errorMessage = `Gemini API error: ${err.message}`;
-        } else if (aiProvider === 'claude') {
+        } else if (aiProvider === 'claude' || aiProvider === 'anthropic') {
           errorMessage = `Claude API error: ${err.message}`;
         }
 

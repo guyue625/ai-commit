@@ -4,7 +4,7 @@
 
 <img height="120" src="https://github.com/Sitoi/ai-commit/blob/main/images/logo.png?raw=true">
 
-<h1>AI Commit</h1>
+<h1>Lin AI Commit</h1>
 
 使用 OpenAI / Azure OpenAI / DeepSeek / Grok / Gemini / Claude (Anthropic) API 审查 Git 暂存区修改，生成符合 Conventional Commit 规范的提交消息，简化提交流程，保持提交规范一致。
 
@@ -21,13 +21,14 @@
 [![][avarage-rating-shield]][avarage-rating-link]
 [![][github-license-shield]][github-license-link]
 
-![](https://github.com/sitoi/ai-commit/blob/main/aicommit.gif?raw=true)
-
 </div>
 
 ## ✨ 特性
 
 - 🤯 支持使用 OpenAI / Azure OpenAI / DeepSeek / Grok / Gemini / Claude (Anthropic) API 根据 git diffs 自动生成提交信息
+- 🎛️ 使用 VS Code 原生配置中心管理多套 OpenAI 和 Anthropic 命名渠道
+- 🔐 完整 API Key 只保存在 VS Code SecretStorage，页面仅显示掩码提示
+- ☁️ 渠道元数据可随 Settings Sync 同步，并可选择端到端加密同步全部 Key
 - 🧠 支持 OpenAI Responses API，可配置推理强度（reasoning effort）和输出详细程度
 - 🗺️ 支持多语言提交信息
 - 😜 支持添加 Gitmoji
@@ -39,46 +40,46 @@
 1. 在 VSCode 中搜索 "AI Commit" 并点击 "Install" 按钮。
 2. 从 [Visual Studio Code Marketplace](https://marketplace.visualstudio.com/items?itemName=Sitoi.ai-commit) 直接安装。
 
+如果要安装当前 Fork 的本地版本，请运行 `npm install` 和 `npm run package`，然后在 VS Code 中执行 **Install from VSIX...**，选择生成的 `.vsix` 文件。
+
 > **Note**\
 > 请确保 Node.js 版本 >= 16
 
 ## 🤯 使用
 
 1. 确保您已经安装并启用了 `AI Commit` 扩展。
-2. 在 `VSCode` 设置中，找到 "ai-commit" 配置项，并根据需要进行配置：
-3. 在项目中进行更改并将更改添加到暂存区 (git add)。
-4. (可选) 如果您想为提交消息提供额外的上下文，请在点击 AI Commit 按钮之前，在源代码管理面板的消息输入框中输入上下文。
-5. 在 `Source Control` 面板的提交消息输入框旁边，单击 `AI Commit` 图标按钮。点击后，扩展将生成 Commit 信息（如果提供了额外上下文，将会考虑在内）并填充到输入框中。
-6. 审核生成的 Commit 信息，如果满意，请提交更改。
+2. 执行 **AI Commit：打开配置中心**，或点击源代码管理标题栏中的设置图标。
+3. 新建 OpenAI 或 Anthropic 渠道，填写 Base URL、模型和 API Key，然后选择 **保存并启用**。
+4. 在项目中进行更改并将更改添加到暂存区（`git add`）。
+5. 如需补充上下文，可先在源代码管理的提交输入框中填写说明。
+6. 点击 AI Commit 图标，生成结果会写回同一个提交输入框。
+7. 检查生成的提交信息，确认后再提交。
 
 > **Note**\
 > 如果超过最大 token 长度请分批将代码添加到暂存区。
 
-### ⚙️ 配置
+### ⚙️ 配置中心
 
-> **Note** Version >= 0.0.5 不需要配置 `EMOJI_ENABLED` 和 `FULL_GITMOJI_SPEC`，默认提示词为 [prompt/without_gitmoji.md](./prompt/with_gitmoji.md)，如果不需要使用 `Gitmoji`，请将 `SYSTEM_PROMPT` 设置为您的自定义提示词, 请参考 [prompt/without_gitmoji.md](./prompt/without_gitmoji.md)。
+OpenAI 和 Anthropic 推荐通过配置中心管理：
 
-在 `VSCode` 设置中，找到 "ai-commit" 配置项，并根据需要进行配置
+- 每个服务商都可以保存多套命名渠道。
+- OpenAI 兼容接口和 Anthropic 兼容接口都支持自定义 Base URL。
+- 页面顶部始终显示真正生效的服务商、配置名称、完整 Base URL、模型和 Key 掩码。
+- 查看另一个服务商不会切换当前配置，只有点击 **启用** 或 **保存并启用** 才会改变当前工作区。
+- 模型列表仅在主动点击时获取；接口不支持时仍可手动填写模型。
+- 渠道列表全局共享，不同工作区可以选择不同的当前渠道。
 
-| 配置                    |  类型  |            默认            | 必要 |                                                      备注                                                       |
-| :---------------------- | :----: | :------------------------: | :--: | :-------------------------------------------------------------------------------------------------------------: |
-| AI_PROVIDER             | string |           openai           | Yes  |                                 选择 AI 提供商：`openai`、`gemini` 或 `claude`                                  |
-| OPENAI_API_KEY          | string |            None            |  是  |                           [OpenAI 令牌](https://platform.openai.com/account/api-keys)                           |
-| OPENAI_BASE_URL         | string |            None            |  否  |             如果使用 Azure，填入：`https://{resource}.openai.azure.com/openai/deployments/{model}`              |
-| OPENAI_MODEL            | string |           gpt-4o           |  是  |                     OpenAI 模型，可通过运行 `Show Available OpenAI Models` 命令从列表中选择                     |
-| AZURE_API_VERSION       | string |            None            |  否  |                                                Azure API 版本号                                                 |
-| OPENAI_TEMPERATURE      | number |            0.7             |  否  |                控制输出随机性。范围：0–2。较低：更集中，较高：更有创造性（仅 Chat Completions）                 |
-| OPENAI_API_TYPE         | string |         completion         |  否  |                  选择 API 类型：`completion`（Chat Completions）或 `response`（Responses API）                  |
-| OPENAI_REASONING_EFFORT | string |           medium           |  否  |     Responses API 推理强度：`minimal`、`low`、`medium`、`high`。仅在 `OPENAI_API_TYPE` 为 `response` 时生效     |
-| OPENAI_TEXT_VERBOSITY   | string |           medium           |  否  |      Responses API 输出详细程度：`low`（~1000 tokens）、`medium`（~4000 tokens）、`high`（~16000 tokens）       |
-| GEMINI_API_KEY          | string |            None            |  是  |          `AI_PROVIDER` 为 `gemini` 时必填。[Gemini API key](https://makersuite.google.com/app/apikey)           |
-| GEMINI_MODEL            | string |    gemini-2.0-flash-001    |  是  |                                                Gemini 使用的模型                                                |
-| GEMINI_TEMPERATURE      | number |            0.7             |  否  |                            控制输出随机性。范围：0–2。较低：更集中，较高：更有创造性                            |
-| CLAUDE_API_KEY          | string |            None            |  否  | Anthropic API 密钥。留空可使用 Claude CLI（通过 `claude setup-token` 认证）。`AI_PROVIDER` 为 `claude` 时需配置 |
-| CLAUDE_MODEL            | string | claude-sonnet-4-5-20250929 |  否  |                                                Claude 使用的模型                                                |
-| CLAUDE_TEMPERATURE      | number |            0.7             |  否  |                                            控制输出随机性。范围：0–1                                            |
-| AI_COMMIT_LANGUAGE      | string |          English           |  是  |                                                 支持 19 种语言                                                  |
-| SYSTEM_PROMPT           | string |            None            |  否  |                                                自定义系统提示词                                                 |
+完整 Key 只保存在 VS Code SecretStorage，不会写入 `settings.json`，不会返回给 Webview，也不会记录到日志。
+
+### 加密 Key 同步
+
+渠道元数据会参与 VS Code Settings Sync。Key 同步默认关闭，开启后会先使用 scrypt 和 AES-256-GCM 在本机端到端加密，再把密文放入 Settings Sync。同步密码不会上传。新设备只需输入一次同步密码，即可把全部 Key 恢复到该设备的 SecretStorage。
+
+### Prompt 与旧配置兼容
+
+内置提交 Prompt 和原生成流程保持不变。自定义 Prompt 非空时仍然完整替换内置 Prompt；留空时继续使用原内置 Prompt。
+
+旧版 OpenAI 和 Claude 明文设置会在首次使用时进行事务式迁移，只有确认 Key 已写入 SecretStorage 后才会清除旧值。旧版 Gemini 设置继续作为兼容分支保留，但配置中心不会新建 Gemini 渠道。
 
 ## ⌨️ 本地开发
 

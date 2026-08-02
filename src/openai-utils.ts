@@ -2,13 +2,21 @@ import OpenAI from 'openai';
 import { ChatCompletionMessageParam } from 'openai/resources';
 import { ReasoningEffort } from 'openai/resources/shared';
 import { ConfigKeys, ConfigurationManager } from './config';
+import {
+  buildOpenAIClientOptions,
+  RuntimeOpenAIConfig
+} from './providers/runtime-provider-config';
 
 /**
  * Creates and returns an OpenAI configuration object.
  * @returns {Object} - The OpenAI configuration object.
  * @throws {Error} - Throws an error if the API key is missing or empty.
  */
-function getOpenAIConfig() {
+function getOpenAIConfig(runtimeConfig?: RuntimeOpenAIConfig) {
+  if (runtimeConfig) {
+    return buildOpenAIClientOptions(runtimeConfig);
+  }
+
   const configManager = ConfigurationManager.getInstance();
   const apiKey = configManager.getConfig<string>(ConfigKeys.OPENAI_API_KEY);
   const baseURL = configManager.getConfig<string>(ConfigKeys.OPENAI_BASE_URL);
@@ -42,8 +50,8 @@ function getOpenAIConfig() {
  * Creates and returns an OpenAI API instance.
  * @returns {OpenAI} - The OpenAI API instance.
  */
-export function createOpenAIApi() {
-  const config = getOpenAIConfig();
+export function createOpenAIApi(runtimeConfig?: RuntimeOpenAIConfig) {
+  const config = getOpenAIConfig(runtimeConfig);
   return new OpenAI(config);
 }
 
@@ -52,14 +60,18 @@ export function createOpenAIApi() {
  * @param {Array<Object>} messages - The messages to send to the API.
  * @returns {Promise<string>} - A promise that resolves to the API response.
  */
-export async function ChatGPTAPI(messages: ChatCompletionMessageParam[]) {
-  const openai = createOpenAIApi();
+export async function ChatGPTAPI(
+  messages: ChatCompletionMessageParam[],
+  runtimeConfig?: RuntimeOpenAIConfig
+) {
+  const openai = createOpenAIApi(runtimeConfig);
   const configManager = ConfigurationManager.getInstance();
-  const model = configManager.getConfig<string>(ConfigKeys.OPENAI_MODEL);
-  const temperature = configManager.getConfig<number>(
-    ConfigKeys.OPENAI_TEMPERATURE,
-    0.7
-  );
+  const model =
+    runtimeConfig?.model ??
+    configManager.getConfig<string>(ConfigKeys.OPENAI_MODEL);
+  const temperature =
+    runtimeConfig?.options.temperature ??
+    configManager.getConfig<number>(ConfigKeys.OPENAI_TEMPERATURE, 0.7);
 
   const completion = await openai.chat.completions.create({
     model,
@@ -76,18 +88,21 @@ export async function ChatGPTAPI(messages: ChatCompletionMessageParam[]) {
  * @param {Array<Object>} messages - The messages to send (same format as Chat Completions).
  * @returns {Promise<string>} - A promise that resolves to the API response text.
  */
-export async function ResponsesAPI(messages: ChatCompletionMessageParam[]) {
-  const openai = createOpenAIApi();
+export async function ResponsesAPI(
+  messages: ChatCompletionMessageParam[],
+  runtimeConfig?: RuntimeOpenAIConfig
+) {
+  const openai = createOpenAIApi(runtimeConfig);
   const configManager = ConfigurationManager.getInstance();
-  const model = configManager.getConfig<string>(ConfigKeys.OPENAI_MODEL);
-  const reasoningEffort = configManager.getConfig<string>(
-    ConfigKeys.OPENAI_REASONING_EFFORT,
-    'medium'
-  );
-  const textVerbosity = configManager.getConfig<string>(
-    ConfigKeys.OPENAI_TEXT_VERBOSITY,
-    'medium'
-  );
+  const model =
+    runtimeConfig?.model ??
+    configManager.getConfig<string>(ConfigKeys.OPENAI_MODEL);
+  const reasoningEffort =
+    runtimeConfig?.options.reasoningEffort ??
+    configManager.getConfig<string>(ConfigKeys.OPENAI_REASONING_EFFORT, 'medium');
+  const textVerbosity =
+    runtimeConfig?.options.textVerbosity ??
+    configManager.getConfig<string>(ConfigKeys.OPENAI_TEXT_VERBOSITY, 'medium');
 
   const verbosityTokenMap: Record<string, number> = {
     low: 1000,

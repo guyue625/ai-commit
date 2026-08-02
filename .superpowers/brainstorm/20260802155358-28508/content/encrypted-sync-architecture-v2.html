@@ -1,0 +1,70 @@
+<h2>端到端加密 Key 同步</h2>
+<p class="subtitle">VS Code 只接触密文；同步密码和解密后的完整 Key 不会上传。新设备只需解锁一次。</p>
+
+<div class="section">
+  <div style="display:grid;grid-template-columns:1.15fr .18fr 1.15fr .18fr 1.15fr;gap:10px;align-items:stretch">
+    <div style="border:1px solid #4d83a8;background:#172735;border-radius:8px;padding:16px">
+      <div class="label">设备 A</div>
+      <h3>创建或修改渠道</h3>
+      <ul style="font-size:12px;line-height:1.65;padding-left:18px"><li>完整 Key 写入本机 SecretStorage</li><li>同步密码仅保存在本机 SecretStorage</li><li>离线时照常生成提交信息</li></ul>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;font-size:26px;color:#888">→</div>
+    <div style="border:1px solid #8067a8;background:#251f31;border-radius:8px;padding:16px">
+      <div class="label">扩展宿主内加密</div>
+      <h3>EncryptedVaultService</h3>
+      <ul style="font-size:12px;line-height:1.65;padding-left:18px"><li>scrypt 从同步密码派生密钥</li><li>AES-256-GCM 加密全部渠道 Key</li><li>携带盐、随机 nonce、校验标签和版本</li></ul>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;font-size:26px;color:#888">→</div>
+    <div style="border:1px solid #2f7d46;background:#17271d;border-radius:8px;padding:16px">
+      <div class="label">VS Code Settings Sync</div>
+      <h3>只同步加密密钥包</h3>
+      <ul style="font-size:12px;line-height:1.65;padding-left:18px"><li>渠道元数据和密文一起同步</li><li>没有同步密码无法解密</li><li>绝不写入 settings.json 明文</li></ul>
+    </div>
+  </div>
+
+  <div style="display:flex;justify-content:flex-end;padding:10px 16% 4px 0;font-size:27px;color:#888">↓</div>
+
+  <div style="display:grid;grid-template-columns:1.15fr .18fr 1.15fr .18fr 1.15fr;gap:10px;align-items:stretch">
+    <div style="border:1px solid #4d83a8;background:#172735;border-radius:8px;padding:16px;grid-column:5">
+      <div class="label">设备 B</div>
+      <h3>首次解锁一次</h3>
+      <ol style="font-size:12px;line-height:1.65;padding-left:18px"><li>登录 VS Code 并等待配置同步</li><li>输入一次同步密码</li><li>校验并解密全部 Key</li><li>写入设备 B 的 SecretStorage</li></ol>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;font-size:26px;color:#888;grid-column:4;grid-row:1">←</div>
+    <div style="border:1px solid #8b6d2c;background:#2b2618;border-radius:8px;padding:16px;grid-column:3;grid-row:1">
+      <div class="label">解锁完成</div>
+      <h3>10 个渠道一次恢复</h3>
+      <p style="font-size:12px;line-height:1.65">无需逐个补 Key。以后设备 B 可离线使用，并在修改渠道后重新生成密钥包同步回其他设备。</p>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:28px">
+  <div class="label">安全与恢复规则</div>
+  <div class="pros-cons" style="margin-top:9px">
+    <div class="pros">
+      <h4>正常使用</h4>
+      <ul><li>Key 在 Webview 中永远只显示掩码</li><li>同步密码首次输入后可保存在本机 SecretStorage</li><li>新增、编辑或删除 Key 后自动更新加密包</li><li>关闭 Settings Sync 不影响本机渠道</li></ul>
+    </div>
+    <div class="cons">
+      <h4>必须明确的限制</h4>
+      <ul><li>忘记同步密码无法解密云端密钥包</li><li>重置同步密码需要在仍能解锁的设备上完成</li><li>多设备同时修改时进行版本检查，冲突时要求用户选择</li><li>该功能必须由用户明确开启，不默认上传密文</li></ul>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:24px;border:1px solid #555;background:#252525;border-radius:7px;padding:15px">
+  <strong>生成逻辑边界</strong>
+  <p style="font-size:12px;line-height:1.6;margin-bottom:0">解锁只负责把对应 Key 放回 SecretStorage。生成提交信息时仍按现有顺序读取 diff、默认 Prompt 和上下文，再使用当前渠道调用 OpenAI 或 Anthropic；不会改写原 Prompt 或提交格式。</p>
+</div>
+
+<div class="options" style="margin-top:23px">
+  <div class="option" data-choice="approve-encrypted-sync" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content"><h3>加密同步方案符合预期</h3><p>继续确认异常处理和测试设计。</p></div>
+  </div>
+  <div class="option" data-choice="revise-encrypted-sync" onclick="toggleSelect(this)">
+    <div class="letter">↻</div>
+    <div class="content"><h3>还需要调整</h3><p>回到终端说明同步、解锁或恢复流程的问题。</p></div>
+  </div>
+</div>

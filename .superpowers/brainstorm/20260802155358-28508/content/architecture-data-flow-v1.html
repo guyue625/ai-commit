@@ -1,0 +1,71 @@
+<h2>架构与数据流</h2>
+<p class="subtitle">配置层新增在外围；暂存区 diff、默认 Prompt、附加上下文、模型调用和 SCM 回填顺序保持不变。</p>
+
+<div class="section">
+  <div class="label">配置与同步</div>
+  <div style="display:grid;grid-template-columns:1.15fr .22fr 1.25fr .22fr 1.25fr;gap:10px;align-items:stretch;margin-top:9px">
+    <div style="border:1px solid #4d83a8;background:#172735;border-radius:7px;padding:16px">
+      <h3 style="margin-top:0">配置中心 Webview</h3>
+      <p style="font-size:12px;line-height:1.6">展示渠道列表、编辑表单、连接测试与同步状态。页面只接收 Key 输入，不缓存或回显完整 Key。</p>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;font-size:24px;color:#888">⇄</div>
+    <div style="border:1px solid #8067a8;background:#251f31;border-radius:7px;padding:16px">
+      <h3 style="margin-top:0">ProfileRepository</h3>
+      <p style="font-size:12px;line-height:1.6">统一完成新增、编辑、删除、启用、迁移和校验。Webview 不能直接访问 VS Code 存储。</p>
+    </div>
+    <div style="display:flex;align-items:center;justify-content:center;font-size:24px;color:#888">⇄</div>
+    <div style="display:flex;flex-direction:column;gap:9px">
+      <div style="border:1px solid #2f7d46;background:#17271d;border-radius:7px;padding:11px 14px">
+        <strong>可同步 GlobalState</strong><div style="font-size:11px;color:#aaa;margin-top:4px">名称、服务商、Base URL、模型、Key 末四位、默认渠道</div>
+      </div>
+      <div style="border:1px solid #8b6d2c;background:#2b2618;border-radius:7px;padding:11px 14px">
+        <strong>本机 SecretStorage</strong><div style="font-size:11px;color:#aaa;margin-top:4px">profileId → 完整 API Key，不跨设备同步</div>
+      </div>
+      <div style="border:1px solid #555;background:#272727;border-radius:7px;padding:11px 14px">
+        <strong>WorkspaceState</strong><div style="font-size:11px;color:#aaa;margin-top:4px">当前工作区启用的 profileId</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:28px">
+  <div class="label">生成提交信息：原链路保留</div>
+  <div style="display:flex;gap:8px;align-items:stretch;margin-top:9px;overflow-x:auto">
+    <div style="min-width:130px;border:1px solid #555;background:#262626;border-radius:6px;padding:13px;text-align:center"><strong>SCM 按钮</strong><div style="font-size:10px;color:#aaa;margin-top:5px">现有入口</div></div>
+    <div style="align-self:center;color:#888">→</div>
+    <div style="min-width:140px;border:1px solid #555;background:#262626;border-radius:6px;padding:13px;text-align:center"><strong>读取暂存区 diff</strong><div style="font-size:10px;color:#aaa;margin-top:5px">保持不变</div></div>
+    <div style="align-self:center;color:#888">→</div>
+    <div style="min-width:145px;border:1px solid #555;background:#262626;border-radius:6px;padding:13px;text-align:center"><strong>默认 Prompt + 上下文</strong><div style="font-size:10px;color:#aaa;margin-top:5px">保持现有行为</div></div>
+    <div style="align-self:center;color:#888">→</div>
+    <div style="min-width:155px;border:2px solid #4d83a8;background:#172735;border-radius:6px;padding:13px;text-align:center"><strong>解析当前 Profile</strong><div style="font-size:10px;color:#b9d8ee;margin-top:5px">唯一新增步骤</div></div>
+    <div style="align-self:center;color:#888">→</div>
+    <div style="min-width:155px;border:1px solid #555;background:#262626;border-radius:6px;padding:13px;text-align:center"><strong>OpenAI / Anthropic</strong><div style="font-size:10px;color:#aaa;margin-top:5px">使用该 Profile 的 URL、Key、模型</div></div>
+    <div style="align-self:center;color:#888">→</div>
+    <div style="min-width:140px;border:1px solid #555;background:#262626;border-radius:6px;padding:13px;text-align:center"><strong>清理并回填 SCM</strong><div style="font-size:10px;color:#aaa;margin-top:5px">保持不变</div></div>
+  </div>
+</div>
+
+<div class="section" style="margin-top:28px">
+  <div class="label">首次升级与其他设备</div>
+  <div class="split" style="margin-top:9px">
+    <div style="border:1px solid #555;background:#252525;border-radius:7px;padding:15px">
+      <h3 style="margin-top:0">当前设备首次升级</h3>
+      <ol style="font-size:12px;line-height:1.7;padding-left:19px"><li>读取现有 OpenAI / Claude 设置</li><li>生成“已导入”命名渠道</li><li>Key 成功写入 SecretStorage</li><li>验证后清除旧 Settings 明文 Key</li></ol>
+    </div>
+    <div style="border:1px solid #555;background:#252525;border-radius:7px;padding:15px">
+      <h3 style="margin-top:0">登录新设备</h3>
+      <ol style="font-size:12px;line-height:1.7;padding-left:19px"><li>VS Code 同步渠道元数据</li><li>页面显示“此设备缺少 Key”</li><li>为所需渠道补填一次 Key</li><li>测试并在该工作区启用</li></ol>
+    </div>
+  </div>
+</div>
+
+<div class="options" style="margin-top:23px">
+  <div class="option" data-choice="approve-architecture" onclick="toggleSelect(this)">
+    <div class="letter">✓</div>
+    <div class="content"><h3>架构符合预期</h3><p>继续确认错误处理、删除规则和测试范围。</p></div>
+  </div>
+  <div class="option" data-choice="revise-architecture" onclick="toggleSelect(this)">
+    <div class="letter">↻</div>
+    <div class="content"><h3>架构需要调整</h3><p>回到终端说明希望修改的同步或存储行为。</p></div>
+  </div>
+</div>
