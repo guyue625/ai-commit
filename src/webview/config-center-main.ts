@@ -1,7 +1,8 @@
 import {
   createProfileDraft,
   createProfileSubmission,
-  ProfileFormValues
+  ProfileFormValues,
+  resolveDeleteProfileAction
 } from './config-center-browser-actions';
 import {
   ConfigCenterSection,
@@ -233,6 +234,9 @@ app.addEventListener('click', (event) => {
     return;
   }
   const action = actionTarget.dataset.action;
+  if (action !== 'delete-profile') {
+    state.confirmDeleteProfileId = undefined;
+  }
 
   if (action === 'navigate') {
     const section = actionTarget.dataset.section as ConfigCenterSection;
@@ -295,13 +299,30 @@ app.addEventListener('click', (event) => {
     );
     return;
   }
-  if (action === 'delete-profile' && profileId) {
-    if (!window.confirm(view.translations.confirmDelete)) {
+  if (action === 'delete-profile' && profile) {
+    const deleteAction = resolveDeleteProfileAction(
+      profile,
+      state.confirmDeleteProfileId
+    );
+    if (deleteAction.kind === 'blocked') {
+      state.confirmDeleteProfileId = undefined;
+      state.notice = {
+        tone: 'error',
+        text: view.translations.errorActiveProfile
+      };
+      render();
       return;
     }
+    if (deleteAction.kind === 'confirm') {
+      state.confirmDeleteProfileId = deleteAction.profileId;
+      state.notice = undefined;
+      render();
+      return;
+    }
+    state.confirmDeleteProfileId = undefined;
     postRequest(
       'profile.delete',
-      { profileId },
+      { profileId: deleteAction.profileId },
       { kind: 'delete', notice: 'profileDeleted', refreshOnError: true }
     );
     return;

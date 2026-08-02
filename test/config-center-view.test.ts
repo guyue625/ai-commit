@@ -94,4 +94,27 @@ describe('Config Center browser view', () => {
     assert.equal(html.includes('<script>alert(1)</script>'), false);
     assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
   });
+
+  it('keeps the active profile delete action clickable so its restriction can be explained', () => {
+    const html = renderConfigCenter(createView(), { section: 'openai' });
+    const deleteButton = html.match(
+      /<button[^>]*data-action="delete-profile"[^>]*data-profile-id="openai-1"[^>]*>/
+    )?.[0];
+
+    assert.ok(deleteButton);
+    assert.equal(deleteButton.includes(' disabled'), false);
+  });
+
+  it('renders an inline second-click confirmation for a pending deletion', () => {
+    const html = renderConfigCenter(createView(), {
+      section: 'anthropic',
+      confirmDeleteProfileId: 'anthropic-1'
+    } as ConfigCenterUiState);
+
+    assert.match(
+      html,
+      /data-action="delete-profile" data-profile-id="anthropic-1" data-delete-confirming="true"/
+    );
+    assert.match(html, />Click again to confirm deletion<\/button>/);
+  });
 });

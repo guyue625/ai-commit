@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import * as path from 'node:path';
 import { describe, it } from 'mocha';
+import * as browserActions from '../src/webview/config-center-browser-actions';
 import {
   createProfileDraft,
   createProfileSubmission,
@@ -99,5 +102,47 @@ describe('Config Center browser actions', () => {
       textVerbosity: 'low',
       apiVersion: '2025-01-01'
     });
+  });
+
+  it('resolves delete clicks without relying on a browser confirmation dialog', () => {
+    type DeleteProfileAction =
+      | { kind: 'confirm'; profileId: string }
+      | { kind: 'delete'; profileId: string }
+      | { kind: 'blocked'; profileId: string };
+    const resolveDeleteProfileAction = (
+      browserActions as unknown as {
+        resolveDeleteProfileAction?: (
+          profile: { id: string; isActive: boolean },
+          confirmingProfileId?: string
+        ) => DeleteProfileAction;
+      }
+    ).resolveDeleteProfileAction;
+
+    assert.equal(typeof resolveDeleteProfileAction, 'function');
+    if (!resolveDeleteProfileAction) {
+      return;
+    }
+
+    assert.deepEqual(resolveDeleteProfileAction({ id: 'p1', isActive: false }), {
+      kind: 'confirm',
+      profileId: 'p1'
+    });
+    assert.deepEqual(
+      resolveDeleteProfileAction({ id: 'p1', isActive: false }, 'p1'),
+      { kind: 'delete', profileId: 'p1' }
+    );
+    assert.deepEqual(resolveDeleteProfileAction({ id: 'p2', isActive: true }), {
+      kind: 'blocked',
+      profileId: 'p2'
+    });
+  });
+
+  it('does not call the unsupported Webview browser confirmation API', () => {
+    const source = readFileSync(
+      path.join(process.cwd(), 'src/webview/config-center-main.ts'),
+      'utf8'
+    );
+
+    assert.equal(source.includes('window.confirm'), false);
   });
 });

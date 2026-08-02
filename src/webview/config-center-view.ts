@@ -32,6 +32,7 @@ export interface ConfigCenterUiState {
   section: ConfigCenterSection;
   editor?: ProfileEditorState;
   modelOptions?: string[];
+  confirmDeleteProfileId?: string;
   busy?: boolean;
   notice?: { tone: 'success' | 'error'; text: string };
 }
@@ -266,7 +267,8 @@ function renderNavigation(
 
 function renderProfileRows(
   view: ConfigCenterViewModel,
-  profiles: ConfigCenterProfileView[]
+  profiles: ConfigCenterProfileView[],
+  state: ConfigCenterUiState
 ): string {
   const t = view.translations;
   if (profiles.length === 0) {
@@ -333,8 +335,12 @@ function renderProfileRows(
             )}</button>
             <button class="button button--danger" data-action="delete-profile" data-profile-id="${escapeHtml(
               profile.id
-            )}"${profile.isActive ? ' disabled' : ''}>${escapeHtml(
-              t.delete
+            )}" data-delete-confirming="${
+              state.confirmDeleteProfileId === profile.id
+            }">${escapeHtml(
+              state.confirmDeleteProfileId === profile.id
+                ? t.confirmDelete
+                : t.delete
             )}</button>
           </div>
         </article>`
@@ -529,7 +535,7 @@ function renderProviderSection(
         t.addProfile
       )}</button>
     </div>
-    ${renderProfileRows(view, profiles)}
+    ${renderProfileRows(view, profiles, state)}
   </section>`;
 }
 

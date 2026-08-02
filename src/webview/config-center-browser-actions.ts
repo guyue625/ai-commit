@@ -21,6 +21,23 @@ export interface ProfileSubmission {
   activateAfterSave?: string;
 }
 
+export type DeleteProfileAction =
+  | { kind: 'confirm'; profileId: string }
+  | { kind: 'delete'; profileId: string }
+  | { kind: 'blocked'; profileId: string };
+
+export function resolveDeleteProfileAction(
+  profile: { id: string; isActive: boolean },
+  confirmingProfileId?: string
+): DeleteProfileAction {
+  if (profile.isActive) {
+    return { kind: 'blocked', profileId: profile.id };
+  }
+  return confirmingProfileId === profile.id
+    ? { kind: 'delete', profileId: profile.id }
+    : { kind: 'confirm', profileId: profile.id };
+}
+
 function profileOptions(
   editor: ProfileEditorState,
   values: ProfileFormValues

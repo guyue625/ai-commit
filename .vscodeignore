@@ -9,6 +9,8 @@ tmp/**
 src/**
 images/5f1b2fe7-0b88-4c5d-9bb9-8160e1838532.png
 images/ea221fe3-d2b8-4c68-b5f9-b790f584279f.png
+images/icon.svg
+images/logo.png
 .gitignore
 .npmrc
 .prettierrc

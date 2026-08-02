@@ -86,7 +86,7 @@ export const EN_TRANSLATIONS = {
   noActiveProfile: 'No active channel profile',
   loading: 'Loading…',
   retry: 'Retry',
-  confirmDelete: 'Delete this channel profile?',
+  confirmDelete: 'Click again to confirm deletion',
   configure: 'Configure',
   close: 'Close'
 } as const;
@@ -182,7 +182,7 @@ export const ZH_CN_TRANSLATIONS: TranslationDictionary = {
   noActiveProfile: '尚未启用渠道配置',
   loading: '加载中…',
   retry: '重试',
-  confirmDelete: '确定删除这个渠道配置吗？',
+  confirmDelete: '再次点击确认删除',
   configure: '配置',
   close: '关闭'
 };
