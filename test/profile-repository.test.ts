@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'mocha';
-import { ProfileRepository } from '../src/configuration/profile-repository';
+import {
+  PROFILE_CATALOG_BACKUP_KEY,
+  PROFILE_CATALOG_KEY,
+  ProfileRepository
+} from '../src/configuration/profile-repository';
 import { KeyValueStore } from '../src/configuration/storage';
 
 class MemoryStore implements KeyValueStore {
-  private readonly values = new Map<string, unknown>();
+  readonly values = new Map<string, unknown>();
 
   get<T>(key: string, defaultValue?: T): T | undefined {
     return (this.values.has(key) ? this.values.get(key) : defaultValue) as
@@ -170,5 +174,26 @@ describe('ProfileRepository', () => {
     assert.equal(disabled.encryptedSyncEnabled, false);
     assert.equal(disabled.vaultRevision, undefined);
     assert.equal(disabled.revision, 2);
+  });
+
+  it('recovers a local catalog backup when sync delivers an empty older catalog', async () => {
+    const store = new MemoryStore();
+    const repository = new ProfileRepository(
+      store,
+      () => 1000,
+      () => 'profile-1'
+    );
+    const profile = await repository.create(openAiInput);
+    store.values.set(PROFILE_CATALOG_KEY, {
+      schemaVersion: 1,
+      revision: 0,
+      profiles: [],
+      encryptedSyncEnabled: false
+    });
+
+    const recovered = await repository.getCatalog();
+
+    assert.deepEqual(recovered.profiles, [profile]);
+    assert.deepEqual(store.values.get(PROFILE_CATALOG_BACKUP_KEY), recovered);
   });
 });

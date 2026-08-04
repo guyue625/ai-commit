@@ -212,6 +212,7 @@ export class ConfigCenterController {
 
   private async activateProfile(profileId: string): Promise<void> {
     await this.testProfile(profileId);
+    await this.dependencies.profiles.setDefault(profileId);
     await this.dependencies.activeProfiles.setWorkspaceActiveProfile(profileId);
   }
 
@@ -219,8 +220,8 @@ export class ConfigCenterController {
     const { profiles, secrets, vault } = this.dependencies;
     const catalog = await profiles.getCatalog();
     const activeProfileId =
-      this.dependencies.activeProfiles.getWorkspaceActiveProfileId() ??
-      catalog.defaultProfileId;
+      catalog.defaultProfileId ??
+      this.dependencies.activeProfiles.getWorkspaceActiveProfileId();
     if (activeProfileId === profileId) {
       throw new Error('PROFILE_IS_ACTIVE');
     }

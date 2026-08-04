@@ -571,7 +571,7 @@ describe('ConfigCenterController', () => {
     assert.equal(JSON.stringify(response).includes('sk-unsaved-secret'), false);
   });
 
-  it('tests then activates a profile only for the current workspace', async () => {
+  it('tests then activates a profile as the synced global default', async () => {
     const harness = createControllerHarness();
     const profile = await createOpenAIProfile(harness);
 
@@ -587,7 +587,7 @@ describe('ConfigCenterController', () => {
       harness.activeProfiles.getWorkspaceActiveProfileId(),
       profile.id
     );
-    assert.equal((await harness.profiles.getCatalog()).defaultProfileId, undefined);
+    assert.equal((await harness.profiles.getCatalog()).defaultProfileId, profile.id);
     if (response.ok) {
       assert.equal(response.data.view.activeProfileId, profile.id);
     }

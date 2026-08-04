@@ -5,7 +5,9 @@ import { SecretRepository } from '../src/configuration/secret-repository';
 import { KeyValueStore, SecretStore } from '../src/configuration/storage';
 import {
   EncryptedVaultCoordinator,
-  ENCRYPTED_VAULT_KEY
+  ENCRYPTED_VAULT_BACKUP_KEY,
+  ENCRYPTED_VAULT_KEY,
+  LAST_APPLIED_VAULT_REVISION_KEY
 } from '../src/sync/encrypted-vault-coordinator';
 import { EncryptedVaultEnvelope } from '../src/sync/encrypted-vault-types';
 import { EncryptedVaultService } from '../src/sync/encrypted-vault-service';
@@ -208,5 +210,127 @@ describe('EncryptedVaultCoordinator', () => {
       await secondSecrets.getApiKey(created.openai.id),
       'local-key-must-remain'
     );
+  });
+
+  it('does not reapply an already imported older vault over a locally changed key', async () => {
+    const globalStore = new MemoryStore();
+    const localStore = new MemorySecrets();
+    let id = 0;
+    const profiles = new ProfileRepository(
+      globalStore,
+      () => 1,
+      () => `profile-${++id}`
+    );
+    const secrets = new SecretRepository(localStore);
+    const created = await createProfiles(profiles, secrets);
+    const coordinator = new EncryptedVaultCoordinator(
+      profiles,
+      secrets,
+      globalStore,
+      localStore,
+      createCrypto()
+    );
+    await coordinator.enable('sync password', true);
+    await localStore.store(LAST_APPLIED_VAULT_REVISION_KEY, '1');
+    await secrets.storeApiKey(created.openai.id, 'locally-rotated-key');
+
+    await coordinator.unlock('sync password', true);
+
+    assert.equal(
+      await secrets.getApiKey(created.openai.id),
+      'locally-rotated-key'
+    );
+  });
+
+  it('restores a missing local key even when the vault revision is unchanged', async () => {
+    const globalStore = new MemoryStore();
+    const localStore = new MemorySecrets();
+    let id = 0;
+    const profiles = new ProfileRepository(
+      globalStore,
+      () => 1,
+      () => `profile-${++id}`
+    );
+    const secrets = new SecretRepository(localStore);
+    const created = await createProfiles(profiles, secrets);
+    const coordinator = new EncryptedVaultCoordinator(
+      profiles,
+      secrets,
+      globalStore,
+      localStore,
+      createCrypto()
+    );
+    await coordinator.enable('sync password', true);
+    await secrets.deleteApiKey(created.openai.id);
+
+    await coordinator.unlock('sync password', true);
+
+    assert.equal(await secrets.getApiKey(created.openai.id), 'sk-openai-AAAA');
+  });
+
+  it('rejects rebuilding from a device with no local keys', async () => {
+    const globalStore = new MemoryStore();
+    const firstDeviceStore = new MemorySecrets();
+    let id = 0;
+    const profiles = new ProfileRepository(
+      globalStore,
+      () => 1,
+      () => `profile-${++id}`
+    );
+    const firstSecrets = new SecretRepository(firstDeviceStore);
+    const created = await createProfiles(profiles, firstSecrets);
+    const firstDevice = new EncryptedVaultCoordinator(
+      profiles,
+      firstSecrets,
+      globalStore,
+      firstDeviceStore,
+      createCrypto()
+    );
+    await firstDevice.enable('sync password', false);
+    const before = globalStore.get<EncryptedVaultEnvelope>(ENCRYPTED_VAULT_KEY);
+
+    const emptyDeviceStore = new MemorySecrets();
+    const emptyDeviceSecrets = new SecretRepository(emptyDeviceStore);
+    const emptyDevice = new EncryptedVaultCoordinator(
+      profiles,
+      emptyDeviceSecrets,
+      globalStore,
+      emptyDeviceStore,
+      createCrypto()
+    );
+    await emptyDevice.unlock('sync password', false);
+    await emptyDeviceSecrets.deleteApiKey(created.openai.id);
+    await emptyDeviceSecrets.deleteApiKey(created.anthropic.id);
+    await assert.rejects(
+      emptyDevice.rebuild(),
+      /VAULT_REBUILD_REQUIRES_LOCAL_KEYS/
+    );
+    assert.deepEqual(
+      globalStore.get<EncryptedVaultEnvelope>(ENCRYPTED_VAULT_KEY),
+      before
+    );
+    assert.deepEqual(
+      globalStore.get<EncryptedVaultEnvelope>(ENCRYPTED_VAULT_BACKUP_KEY),
+      before
+    );
+  });
+
+  it('defers a key rebuild while the vault is locked', async () => {
+    const globalStore = new MemoryStore();
+    const localStore = new MemorySecrets();
+    const profiles = new ProfileRepository(globalStore);
+    const secrets = new SecretRepository(localStore);
+    await profiles.setEncryptedSyncState(true, 1);
+    const coordinator = new EncryptedVaultCoordinator(
+      profiles,
+      secrets,
+      globalStore,
+      localStore,
+      createCrypto()
+    );
+
+    await coordinator.secretsChanged();
+
+    assert.equal((await coordinator.getState()).status, 'locked');
   });
 });

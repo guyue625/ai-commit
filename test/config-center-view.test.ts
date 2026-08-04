@@ -117,4 +117,17 @@ describe('Config Center browser view', () => {
     );
     assert.match(html, />Click again to confirm deletion<\/button>/);
   });
+
+  it('hides rebuild while locked and requires a second click while unlocked', () => {
+    const locked = renderConfigCenter(createView(), { section: 'sync' });
+    assert.equal(locked.includes('data-action="rebuild-vault"'), false);
+
+    const view = createView();
+    view.sync.status = 'unlocked';
+    const confirming = renderConfigCenter(view, {
+      section: 'sync',
+      confirmRebuildVault: true
+    });
+    assert.match(confirming, /Click again to overwrite synced keys/);
+  });
 });

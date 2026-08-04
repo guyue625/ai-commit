@@ -237,6 +237,9 @@ app.addEventListener('click', (event) => {
   if (action !== 'delete-profile') {
     state.confirmDeleteProfileId = undefined;
   }
+  if (action !== 'rebuild-vault') {
+    state.confirmRebuildVault = undefined;
+  }
 
   if (action === 'navigate') {
     const section = actionTarget.dataset.section as ConfigCenterSection;
@@ -341,6 +344,16 @@ app.addEventListener('click', (event) => {
     return;
   }
   if (action === 'rebuild-vault') {
+    if (view.sync.status !== 'unlocked') {
+      return;
+    }
+    if (!state.confirmRebuildVault) {
+      state.confirmRebuildVault = true;
+      state.notice = undefined;
+      render();
+      return;
+    }
+    state.confirmRebuildVault = undefined;
     postRequest(
       'vault.rebuild',
       {},

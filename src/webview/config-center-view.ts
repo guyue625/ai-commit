@@ -33,6 +33,7 @@ export interface ConfigCenterUiState {
   editor?: ProfileEditorState;
   modelOptions?: string[];
   confirmDeleteProfileId?: string;
+  confirmRebuildVault?: boolean;
   busy?: boolean;
   notice?: { tone: 'success' | 'error'; text: string };
 }
@@ -608,7 +609,10 @@ function renderPromptSettings(view: ConfigCenterViewModel): string {
   </section>`;
 }
 
-function renderSyncSettings(view: ConfigCenterViewModel): string {
+function renderSyncSettings(
+  view: ConfigCenterViewModel,
+  state: ConfigCenterUiState
+): string {
   const t = view.translations;
   const stateLabel =
     view.sync.status === 'unlocked'
@@ -650,9 +654,11 @@ function renderSyncSettings(view: ConfigCenterViewModel): string {
       ${passwordForm}
       <div class="form-actions">
         ${
-          view.sync.enabled
+          view.sync.status === 'unlocked'
             ? `<button class="button" data-action="rebuild-vault">${escapeHtml(
-                t.rebuildVault
+                state.confirmRebuildVault
+                  ? t.confirmRebuildVault
+                  : t.rebuildVault
               )}</button><button class="button button--danger" data-action="disable-vault">${escapeHtml(
                 t.disableSync
               )}</button>`
@@ -676,7 +682,7 @@ function renderContent(
   if (state.section === 'prompt') {
     return renderPromptSettings(view);
   }
-  return renderSyncSettings(view);
+  return renderSyncSettings(view, state);
 }
 
 export function renderConfigCenter(

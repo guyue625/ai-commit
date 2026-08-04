@@ -32,8 +32,11 @@ export class ActiveProfileResolver {
 
   async resolve(): Promise<ResolveActiveProfileResult> {
     const catalog = await this.profiles.getCatalog();
+    // The synced default is the canonical selection. Keep the workspace value
+    // only as a compatibility fallback for installations created before the
+    // profile catalog became the source of truth.
     const selectedProfileId =
-      this.getWorkspaceActiveProfileId() ?? catalog.defaultProfileId;
+      catalog.defaultProfileId ?? this.getWorkspaceActiveProfileId();
 
     if (!selectedProfileId) {
       return { ok: false, reason: 'NO_ACTIVE_PROFILE' };

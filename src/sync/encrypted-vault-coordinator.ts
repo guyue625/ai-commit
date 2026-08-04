@@ -9,6 +9,8 @@ import { EncryptedVaultEnvelope, VaultSecretEntry } from './encrypted-vault-type
 import { EncryptedVaultService } from './encrypted-vault-service';
 
 export const ENCRYPTED_VAULT_KEY = 'aiCommit.encryptedVault.v1';
+export const ENCRYPTED_VAULT_BACKUP_KEY =
+  'aiCommit.encryptedVault.localBackup.v1';
 export const SYNC_PASSWORD_SECRET_KEY = 'aiCommit.sync.masterPassword';
 export const LAST_APPLIED_VAULT_REVISION_KEY =
   'aiCommit.sync.lastAppliedVaultRevision';
@@ -48,9 +50,7 @@ export class EncryptedVaultCoordinator
     if (!catalog.encryptedSyncEnabled) {
       return { enabled: false, status: 'disabled' };
     }
-    const envelope = this.globalStore.get<EncryptedVaultEnvelope>(
-      ENCRYPTED_VAULT_KEY
-    );
+    const envelope = this.readEnvelope();
     return {
       enabled: true,
       status: this.sessionPassword ? 'unlocked' : 'locked',
@@ -60,9 +60,7 @@ export class EncryptedVaultCoordinator
 
   async enable(password: string, remember: boolean): Promise<void> {
     const catalogBefore = await this.profiles.getCatalog();
-    const envelopeBefore = this.globalStore.get<EncryptedVaultEnvelope>(
-      ENCRYPTED_VAULT_KEY
-    );
+    const envelopeBefore = this.readEnvelope();
     const rememberedBefore = await this.localSecrets.get(
       SYNC_PASSWORD_SECRET_KEY
     );
@@ -80,6 +78,7 @@ export class EncryptedVaultCoordinator
 
     try {
       await this.globalStore.update(ENCRYPTED_VAULT_KEY, envelope);
+      await this.globalStore.update(ENCRYPTED_VAULT_BACKUP_KEY, envelope);
       await this.profiles.setEncryptedSyncState(true, revision);
       await this.storeRememberedPassword(password, remember);
       await this.localSecrets.store(
@@ -89,6 +88,7 @@ export class EncryptedVaultCoordinator
       this.sessionPassword = password;
     } catch (error) {
       await this.globalStore.update(ENCRYPTED_VAULT_KEY, envelopeBefore);
+      await this.globalStore.update(ENCRYPTED_VAULT_BACKUP_KEY, envelopeBefore);
       await this.profiles.restoreCatalog(catalogBefore);
       await this.restoreLocalSecret(
         SYNC_PASSWORD_SECRET_KEY,
@@ -103,9 +103,7 @@ export class EncryptedVaultCoordinator
   }
 
   async unlock(password: string, remember: boolean): Promise<void> {
-    const envelope = this.globalStore.get<EncryptedVaultEnvelope>(
-      ENCRYPTED_VAULT_KEY
-    );
+    const envelope = this.readEnvelope();
     if (!envelope) {
       throw new Error('VAULT_NOT_AVAILABLE');
     }
@@ -119,17 +117,29 @@ export class EncryptedVaultCoordinator
     );
 
     try {
+      const lastAppliedRevision = Number.parseInt(
+        lastAppliedBefore ?? '',
+        10
+      );
+      const shouldApplyNewRevision =
+        !Number.isFinite(lastAppliedRevision) ||
+        lastAppliedRevision < envelope.revision;
       for (const entry of plaintext.secrets) {
-        previousKeys.set(
-          entry.profileId,
-          await this.profileSecrets.getApiKey(entry.profileId)
-        );
+        const existingKey = await this.profileSecrets.getApiKey(entry.profileId);
+        if (!shouldApplyNewRevision && existingKey !== undefined) {
+          continue;
+        }
+        previousKeys.set(entry.profileId, existingKey);
         await this.profileSecrets.storeApiKey(entry.profileId, entry.apiKey);
-        if ((await this.profileSecrets.getApiKey(entry.profileId)) !== entry.apiKey) {
+        if (
+          (await this.profileSecrets.getApiKey(entry.profileId)) !==
+          entry.apiKey
+        ) {
           throw new Error('SECRET_VERIFICATION_FAILED');
         }
       }
       await this.storeRememberedPassword(password, remember);
+      await this.globalStore.update(ENCRYPTED_VAULT_BACKUP_KEY, envelope);
       await this.localSecrets.store(
         LAST_APPLIED_VAULT_REVISION_KEY,
         String(envelope.revision)
@@ -167,26 +177,40 @@ export class EncryptedVaultCoordinator
     if (!catalogBefore.encryptedSyncEnabled) {
       throw new Error('VAULT_NOT_ENABLED');
     }
-    const password =
-      this.sessionPassword ??
-      (await this.localSecrets.get(SYNC_PASSWORD_SECRET_KEY));
+    const password = this.sessionPassword;
     if (!password) {
       throw new Error('VAULT_LOCKED');
     }
-    const envelopeBefore = this.globalStore.get<EncryptedVaultEnvelope>(
-      ENCRYPTED_VAULT_KEY
-    );
+    const envelopeBefore = this.readEnvelope();
     const revision =
       Math.max(catalogBefore.vaultRevision ?? 0, envelopeBefore?.revision ?? 0) +
       1;
-    const envelope = await this.crypto.encrypt(
-      await this.collectLocalSecrets(),
-      password,
-      revision
+    const localEntries = await this.collectLocalSecrets();
+    let existingEntries: VaultSecretEntry[] = [];
+    if (envelopeBefore) {
+      const existingPlaintext = await this.crypto.decrypt(envelopeBefore, password);
+      existingEntries = existingPlaintext.secrets;
+    }
+    if (localEntries.length === 0 && existingEntries.length > 0) {
+      throw new Error('VAULT_REBUILD_REQUIRES_LOCAL_KEYS');
+    }
+    const localByProfile = new Map(
+      localEntries.map((entry) => [entry.profileId, entry])
     );
+    const catalogProfileIds = new Set(catalogBefore.profiles.map((profile) => profile.id));
+    const mergedEntries = [
+      ...existingEntries.filter(
+        (entry) =>
+          catalogProfileIds.has(entry.profileId) &&
+          !localByProfile.has(entry.profileId)
+      ),
+      ...localEntries
+    ];
+    const envelope = await this.crypto.encrypt(mergedEntries, password, revision);
 
     try {
       await this.globalStore.update(ENCRYPTED_VAULT_KEY, envelope);
+      await this.globalStore.update(ENCRYPTED_VAULT_BACKUP_KEY, envelope);
       await this.profiles.setEncryptedSyncState(true, revision);
       await this.localSecrets.store(
         LAST_APPLIED_VAULT_REVISION_KEY,
@@ -195,6 +219,7 @@ export class EncryptedVaultCoordinator
       this.sessionPassword = password;
     } catch (error) {
       await this.globalStore.update(ENCRYPTED_VAULT_KEY, envelopeBefore);
+      await this.globalStore.update(ENCRYPTED_VAULT_BACKUP_KEY, envelopeBefore);
       await this.profiles.restoreCatalog(catalogBefore);
       throw error;
     }
@@ -202,6 +227,7 @@ export class EncryptedVaultCoordinator
 
   async disable(): Promise<void> {
     await this.globalStore.update(ENCRYPTED_VAULT_KEY, undefined);
+    await this.globalStore.update(ENCRYPTED_VAULT_BACKUP_KEY, undefined);
     await this.profiles.setEncryptedSyncState(false);
     await this.localSecrets.delete(SYNC_PASSWORD_SECRET_KEY);
     await this.localSecrets.delete(LAST_APPLIED_VAULT_REVISION_KEY);
@@ -210,6 +236,9 @@ export class EncryptedVaultCoordinator
 
   async secretsChanged(): Promise<void> {
     if (!(await this.profiles.getCatalog()).encryptedSyncEnabled) {
+      return;
+    }
+    if (!this.sessionPassword) {
       return;
     }
     await this.rebuild();
@@ -228,6 +257,22 @@ export class EncryptedVaultCoordinator
       }
     }
     return entries;
+  }
+
+  private readEnvelope(): EncryptedVaultEnvelope | undefined {
+    const synced = this.globalStore.get<EncryptedVaultEnvelope>(
+      ENCRYPTED_VAULT_KEY
+    );
+    const backup = this.globalStore.get<EncryptedVaultEnvelope>(
+      ENCRYPTED_VAULT_BACKUP_KEY
+    );
+    if (!synced) {
+      return backup;
+    }
+    if (backup && backup.revision > synced.revision) {
+      return backup;
+    }
+    return synced;
   }
 
   private async storeRememberedPassword(

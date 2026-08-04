@@ -10,6 +10,7 @@ import {
 import { KeyValueStore } from './storage';
 
 export const PROFILE_CATALOG_KEY = 'aiCommit.profileCatalog.v1';
+export const PROFILE_CATALOG_BACKUP_KEY = 'aiCommit.profileCatalog.localBackup.v1';
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -63,10 +64,21 @@ export class ProfileRepository {
   ) {}
 
   async getCatalog(): Promise<ProfileCatalog> {
-    return clone(
-      this.store.get<ProfileCatalog>(PROFILE_CATALOG_KEY, EMPTY_PROFILE_CATALOG) ??
-        EMPTY_PROFILE_CATALOG
+    const synced = this.store.get<ProfileCatalog>(
+      PROFILE_CATALOG_KEY,
+      EMPTY_PROFILE_CATALOG
     );
+    const backup = this.store.get<ProfileCatalog>(PROFILE_CATALOG_BACKUP_KEY);
+    const catalog = synced ?? EMPTY_PROFILE_CATALOG;
+    if (
+      backup &&
+      backup.profiles.length > 0 &&
+      (catalog.profiles.length === 0 || catalog.revision < backup.revision)
+    ) {
+      await this.store.update(PROFILE_CATALOG_KEY, clone(backup));
+      return clone(backup);
+    }
+    return clone(catalog);
   }
 
   async list(provider?: ProviderType): Promise<ChannelProfile[]> {
@@ -205,6 +217,8 @@ export class ProfileRepository {
   }
 
   private async save(catalog: ProfileCatalog): Promise<void> {
-    await this.store.update(PROFILE_CATALOG_KEY, clone(catalog));
+    const copy = clone(catalog);
+    await this.store.update(PROFILE_CATALOG_KEY, copy);
+    await this.store.update(PROFILE_CATALOG_BACKUP_KEY, clone(copy));
   }
 }

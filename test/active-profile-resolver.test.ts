@@ -89,7 +89,7 @@ async function createFixture() {
 }
 
 describe('ActiveProfileResolver', () => {
-  it('uses the workspace selection before the global default', async () => {
+  it('uses the global default before a legacy workspace selection', async () => {
     const fixture = await createFixture();
     await fixture.profileRepository.setDefault(fixture.first.id);
     await fixture.resolver.setWorkspaceActiveProfile(fixture.second.id);
@@ -98,8 +98,8 @@ describe('ActiveProfileResolver', () => {
 
     assert.equal(result.ok, true);
     if (result.ok) {
-      assert.equal(result.profile.id, fixture.second.id);
-      assert.equal(result.apiKey, 'sk-ant-second-BBBB');
+      assert.equal(result.profile.id, fixture.first.id);
+      assert.equal(result.apiKey, 'sk-first-AAAA');
     }
   });
 
@@ -115,9 +115,27 @@ describe('ActiveProfileResolver', () => {
     }
   });
 
+  it('can activate a profile as the global default for new workspaces', async () => {
+    const fixture = await createFixture();
+
+    await fixture.profileRepository.setDefault(fixture.second.id);
+    const newWorkspaceResolver = new ActiveProfileResolver(
+      fixture.profileRepository,
+      fixture.secretRepository,
+      new MemoryStore()
+    );
+
+    const result = await newWorkspaceResolver.resolve();
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.profile.id, fixture.second.id);
+    }
+  });
+
   it('reports a missing local secret instead of silently choosing another profile', async () => {
     const fixture = await createFixture();
-    await fixture.profileRepository.setDefault(fixture.first.id);
+    await fixture.profileRepository.setDefault(fixture.second.id);
     await fixture.resolver.setWorkspaceActiveProfile(fixture.second.id);
     await fixture.secretRepository.deleteApiKey(fixture.second.id);
 
