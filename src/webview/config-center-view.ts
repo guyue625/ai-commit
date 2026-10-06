@@ -8,7 +8,7 @@ export type ConfigCenterSection =
   | ProviderType
   | 'general'
   | 'prompt'
-  | 'sync';
+  | 'transfer';
 
 export interface ProfileEditorState {
   mode: 'create' | 'edit';
@@ -33,7 +33,6 @@ export interface ConfigCenterUiState {
   editor?: ProfileEditorState;
   modelOptions?: string[];
   confirmDeleteProfileId?: string;
-  confirmRebuildVault?: boolean;
   busy?: boolean;
   notice?: { tone: 'success' | 'error'; text: string };
 }
@@ -271,7 +270,7 @@ function renderNavigation(
       <div class="nav-divider"></div>
       ${navButton(view, state, 'general', t.generalSettings)}
       ${navButton(view, state, 'prompt', t.customPrompt)}
-      ${navButton(view, state, 'sync', t.encryptedSync)}
+      ${navButton(view, state, 'transfer', t.transferProfiles)}
     </nav>
   </aside>`;
 }
@@ -432,11 +431,9 @@ function renderOpenAIOptions(
 
 function renderEditor(
   view: ConfigCenterViewModel,
-  state: ConfigCenterUiState,
   editor: ProfileEditorState
 ): string {
   const t = view.translations;
-  const modelOptions = state.modelOptions ?? [];
   return `<section class="editor-panel">
     <div class="content-heading">
       <div>
@@ -478,20 +475,21 @@ function renderEditor(
           <span>${escapeHtml(t.keyLabel)}</span>
           <input name="keyLabel" value="${escapeHtml(editor.keyLabel)}">
         </label>
-        <label class="field field--wide">
-          <span>${escapeHtml(t.model)}</span>
+        <div class="field field--wide">
+          <label for="profile-model">${escapeHtml(t.model)}</label>
           <div class="field-with-action">
-            <input name="model" list="model-options" required value="${escapeHtml(
-              editor.model
-            )}" placeholder="${escapeHtml(t.manualModel)}">
+            <div class="model-picker">
+              <input id="profile-model" name="model" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="model-options" autocomplete="off" required value="${escapeHtml(
+                editor.model
+              )}" placeholder="${escapeHtml(t.manualModel)}">
+              <button class="model-picker__toggle" type="button" data-action="toggle-models" aria-label="${escapeHtml(t.chooseModel)}" aria-controls="model-options" aria-expanded="false" tabindex="-1"><span aria-hidden="true">▾</span></button>
+              <div id="model-options" class="model-picker__list" role="listbox" aria-label="${escapeHtml(t.chooseModel)}" data-empty="${escapeHtml(t.fetchModelsFirst)}" data-no-matches="${escapeHtml(t.noMatchingModels)}" hidden></div>
+            </div>
             <button class="button button--quiet" type="button" data-action="fetch-models">${escapeHtml(
               t.fetchModels
             )}</button>
           </div>
-          <datalist id="model-options">${modelOptions
-            .map((model) => `<option value="${escapeHtml(model)}"></option>`)
-            .join('')}</datalist>
-        </label>
+        </div>
         <label class="field">
           <span>${escapeHtml(t.temperature)}</span>
           <input name="temperature" type="number" step="0.1" min="0" max="${
@@ -529,7 +527,7 @@ function renderProviderSection(
 ): string {
   const t = view.translations;
   if (state.editor?.provider === provider) {
-    return renderEditor(view, state, state.editor);
+    return renderEditor(view, state.editor);
   }
   const profiles = view.profiles.filter(
     (profile) => profile.provider === provider
@@ -619,63 +617,31 @@ function renderPromptSettings(view: ConfigCenterViewModel): string {
   </section>`;
 }
 
-function renderSyncSettings(
-  view: ConfigCenterViewModel,
-  state: ConfigCenterUiState
-): string {
+function renderTransferSettings(view: ConfigCenterViewModel): string {
   const t = view.translations;
-  const stateLabel =
-    view.sync.status === 'unlocked'
-      ? t.vaultUnlocked
-      : view.sync.status === 'locked'
-        ? t.vaultLocked
-        : t.vaultDisabled;
-  const passwordForm =
-    view.sync.status === 'unlocked'
-      ? ''
-      : `<form id="vault-form" class="vault-form" data-mode="${
-          view.sync.enabled ? 'unlock' : 'enable'
-        }">
-          <label class="field"><span>${escapeHtml(
-            t.syncPassword
-          )}</span><input name="password" type="password" autocomplete="off" required></label>
-          ${
-            view.sync.enabled
-              ? ''
-              : `<label class="field"><span>${escapeHtml(
-                  t.confirmSyncPassword
-                )}</span><input name="confirmPassword" type="password" autocomplete="off" required></label>`
-          }
-          <label class="check-field"><input name="remember" type="checkbox"><span>${escapeHtml(
-            t.rememberOnDevice
-          )}</span></label>
-          <button class="button button--primary" type="submit">${escapeHtml(
-            view.sync.enabled ? t.unlockVault : t.enableSync
-          )}</button>
-        </form>`;
-  return `<section>
-    <div class="content-heading"><div><p class="eyebrow">VS Code Settings Sync</p><h2>${escapeHtml(
-      t.encryptedSync
-    )}</h2><p>${escapeHtml(t.encryptedSyncDescription)}</p></div></div>
-    <div class="sync-card">
-      <div class="sync-card__status"><span class="vault-icon" aria-hidden="true">◇</span><div><strong>${escapeHtml(
-        stateLabel
-      )}</strong><p>${escapeHtml(t.fullKeyNeverShown)}</p></div></div>
-      ${passwordForm}
-      <div class="form-actions">
-        ${
-          view.sync.status === 'unlocked'
-            ? `<button class="button" data-action="rebuild-vault">${escapeHtml(
-                state.confirmRebuildVault
-                  ? t.confirmRebuildVault
-                  : t.rebuildVault
-              )}</button><button class="button button--danger" data-action="disable-vault">${escapeHtml(
-                t.disableSync
-              )}</button>`
-            : ''
-        }
-      </div>
+  const passwordField = (id: string, label: string, name = 'password') =>
+    `<label class="field" for="${id}"><span>${escapeHtml(label)}</span><input id="${id}" name="${name}" type="password" required autocomplete="new-password" /></label>`;
+  return `<section class="settings-section" data-region="profile-transfer">
+    <div class="content-heading"><div><p class="eyebrow">AI Commit</p><h2>${escapeHtml(t.transferProfiles)}</h2><p>${escapeHtml(t.transferDescription)}</p></div></div>
+    <div class="transfer-grid">
+      <form id="export-form" class="transfer-card">
+        <h3>${escapeHtml(t.exportProfiles)}</h3><p>${escapeHtml(t.exportDescription)}</p>
+        ${passwordField('export-password', t.backupPassword)}
+        ${passwordField('export-confirm', t.confirmBackupPassword, 'confirmPassword')}
+        <p class="field-hint">${escapeHtml(t.backupPasswordHint)}</p>
+        <button type="submit" class="button button--primary"${view.profiles.length === 0 ? ' disabled' : ''}>${escapeHtml(t.exportProfiles)}</button>
+      </form>
+      <form id="import-form" class="transfer-card">
+        <h3>${escapeHtml(t.importProfiles)}</h3><p>${escapeHtml(t.importDescription)}</p>
+        ${passwordField('import-password', t.backupPassword)}
+        <button type="submit" class="button button--primary">${escapeHtml(t.importProfiles)}</button>
+      </form>
     </div>
+    ${view.transfer.legacyAvailable ? `<form id="legacy-recovery-form" class="transfer-card transfer-card--legacy">
+      <h3>${escapeHtml(t.recoverLegacy)}</h3><p>${escapeHtml(t.legacyDescription)}</p>
+      ${passwordField('legacy-password', t.legacyPassword)}
+      <button type="submit" class="button">${escapeHtml(t.recoverLegacy)}</button>
+    </form>` : ''}
   </section>`;
 }
 
@@ -692,7 +658,7 @@ function renderContent(
   if (state.section === 'prompt') {
     return renderPromptSettings(view);
   }
-  return renderSyncSettings(view, state);
+  return renderTransferSettings(view);
 }
 
 export function renderConfigCenter(

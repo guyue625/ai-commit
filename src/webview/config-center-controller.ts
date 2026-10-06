@@ -1,3 +1,4 @@
+import type { ConfigCenterTransferService, TransferResult } from '../transfer/profile-transfer-service';
 import { ActiveProfileResolver } from '../configuration/active-profile-resolver';
 import {
   AnthropicProfileOptions,
@@ -28,21 +29,6 @@ export interface ConfigCenterSettings {
 export interface ConfigCenterSettingsService {
   read(): Promise<ConfigCenterSettings>;
   update(changes: Partial<ConfigCenterSettings>): Promise<void>;
-}
-
-export type ConfigCenterVaultState = {
-  enabled: boolean;
-  status: 'disabled' | 'locked' | 'unlocked';
-  revision?: number;
-};
-
-export interface ConfigCenterVaultService {
-  getState(): Promise<ConfigCenterVaultState>;
-  enable(password: string, remember: boolean): Promise<void>;
-  unlock(password: string, remember: boolean): Promise<void>;
-  rebuild(): Promise<void>;
-  disable(): Promise<void>;
-  secretsChanged(): Promise<void>;
 }
 
 export interface ConfigCenterConnectionTester {
@@ -80,14 +66,14 @@ export interface ConfigCenterViewModel {
   activeProfileId?: string;
   providerCounts: Record<ProviderType, number>;
   settings: ConfigCenterSettings;
-  sync: ConfigCenterVaultState;
+  transfer: { legacyAvailable: boolean };
 }
 
 export type ConfigCenterResponse =
   | {
       requestId: string;
       ok: true;
-      data: { view: ConfigCenterViewModel; models?: string[] };
+      data: { view: ConfigCenterViewModel; models?: string[]; transfer?: TransferResult };
     }
   | {
       requestId: string;
@@ -101,7 +87,7 @@ export interface ConfigCenterControllerDependencies {
   activeProfiles: ActiveProfileResolver;
   connectionTester: ConfigCenterConnectionTester;
   settings: ConfigCenterSettingsService;
-  vault: ConfigCenterVaultService;
+  transfer: ConfigCenterTransferService;
   locale?: string;
 }
 
@@ -115,9 +101,18 @@ function safeErrorCode(error: unknown): string {
 export class ConfigCenterController {
   constructor(private readonly dependencies: ConfigCenterControllerDependencies) {}
 
-  async handle(input: unknown): Promise<ConfigCenterResponse> {
+  private pending: Promise<unknown> = Promise.resolve();
+
+  handle(input: unknown): Promise<ConfigCenterResponse> {
+    const result = this.pending.then(() => this.handleRequest(input));
+    this.pending = result.catch(() => undefined);
+    return result;
+  }
+
+  private async handleRequest(input: unknown): Promise<ConfigCenterResponse> {
     let requestId = '';
     let models: string[] | undefined;
+    let transfer: TransferResult | undefined;
     try {
       const request = parseWebviewRequest(input);
       requestId = request.requestId;
@@ -142,27 +137,19 @@ export class ConfigCenterController {
         await this.deleteProfile(request.payload.profileId);
       } else if (request.type === 'settings.update') {
         await this.dependencies.settings.update(request.payload);
-      } else if (request.type === 'vault.enable') {
-        await this.dependencies.vault.enable(
-          request.payload.password,
-          request.payload.remember
-        );
-      } else if (request.type === 'vault.unlock') {
-        await this.dependencies.vault.unlock(
-          request.payload.password,
-          request.payload.remember
-        );
-      } else if (request.type === 'vault.rebuild') {
-        await this.dependencies.vault.rebuild();
-      } else if (request.type === 'vault.disable') {
-        await this.dependencies.vault.disable();
+      } else if (request.type === 'transfer.export') {
+        transfer = await this.dependencies.transfer.export(request.payload.password);
+      } else if (request.type === 'transfer.import') {
+        transfer = await this.dependencies.transfer.import(request.payload.password);
+      } else if (request.type === 'transfer.recoverLegacy') {
+        transfer = await this.dependencies.transfer.recoverLegacy(request.payload.password);
       } else if (request.type !== 'ready') {
         throw new Error('WEBVIEW_MESSAGE_UNSUPPORTED');
       }
       return {
         requestId,
         ok: true,
-        data: { view: await this.buildViewModel(), models }
+        data: { view: await this.buildViewModel(), models, transfer }
       };
     } catch (error) {
       return {
@@ -218,7 +205,7 @@ export class ConfigCenterController {
   }
 
   private async deleteProfile(profileId: string): Promise<void> {
-    const { profiles, secrets, vault } = this.dependencies;
+    const { profiles, secrets } = this.dependencies;
     const catalog = await profiles.getCatalog();
     const activeProfileId =
       catalog.defaultProfileId ??
@@ -238,11 +225,10 @@ export class ConfigCenterController {
       }
       throw error;
     }
-    await vault.secretsChanged();
   }
 
   private async createProfile(payload: ProfileFormPayload): Promise<void> {
-    const { profiles, secrets, vault } = this.dependencies;
+    const { profiles, secrets } = this.dependencies;
     const keyHint = secrets.createHint(payload.apiKey);
     const common = {
       name: payload.name,
@@ -270,7 +256,6 @@ export class ConfigCenterController {
       await profiles.delete(profile.id);
       throw error;
     }
-    await vault.secretsChanged();
     if (payload.activate) {
       await this.activateProfile(profile.id);
     }
@@ -280,7 +265,7 @@ export class ConfigCenterController {
     profileId: string,
     input: UpdateProfileInput & { apiKey?: string }
   ): Promise<void> {
-    const { profiles, secrets, vault } = this.dependencies;
+    const { profiles, secrets } = this.dependencies;
     const current = await profiles.get(profileId);
     if (!current) {
       throw new Error('PROFILE_NOT_FOUND');
@@ -312,10 +297,6 @@ export class ConfigCenterController {
         }
       }
       throw error;
-    }
-
-    if (apiKey !== undefined) {
-      await vault.secretsChanged();
     }
   }
 
@@ -363,15 +344,15 @@ export class ConfigCenterController {
   }
 
   async buildViewModel(): Promise<ConfigCenterViewModel> {
-    const { profiles, secrets, activeProfiles, settings, vault } =
+    const { profiles, secrets, activeProfiles, settings, transfer } =
       this.dependencies;
-    const [catalog, currentSettings, sync] = await Promise.all([
+    const [catalog, currentSettings, transferState] = await Promise.all([
       profiles.getCatalog(),
       settings.read(),
-      vault.getState()
+      transfer.getState()
     ]);
     const activeProfileId =
-      activeProfiles.getWorkspaceActiveProfileId() ?? catalog.defaultProfileId;
+      catalog.defaultProfileId ?? activeProfiles.getWorkspaceActiveProfileId();
     const profileViews = await Promise.all(
       catalog.profiles.map(async (profile): Promise<ConfigCenterProfileView> => ({
         id: profile.id,
@@ -404,7 +385,7 @@ export class ConfigCenterController {
         ).length
       },
       settings: currentSettings,
-      sync
+      transfer: transferState
     };
   }
 }

@@ -30,8 +30,9 @@ class FakeProbe implements ProviderConnectionProbe {
     return ['gpt-5-mini', '', 'gpt-5-mini', 'gpt-4.1'];
   }
 
-  async testConnection(): Promise<void> {
+  async testConnection(): Promise<'models'> {
     this.testCalls += 1;
+    return 'models';
   }
 }
 
@@ -56,7 +57,8 @@ describe('ProviderConnectionTester', () => {
     );
 
     assert.deepEqual(await tester.testConnection(runtimeConfig), {
-      latencyMs: 42
+      latencyMs: 42,
+      method: 'models'
     });
     assert.equal(probe.testCalls, 1);
   });

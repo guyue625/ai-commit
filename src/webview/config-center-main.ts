@@ -15,6 +15,7 @@ import type {
   ConfigCenterViewModel
 } from './config-center-controller';
 import type { TranslationKey } from './i18n';
+import { ModelPicker } from './model-picker';
 
 interface VsCodeApi<State> {
   postMessage(message: unknown): void;
@@ -49,7 +50,7 @@ const allowedSections: ConfigCenterSection[] = [
   'anthropic',
   'general',
   'prompt',
-  'sync'
+  'transfer'
 ];
 const initialSection = allowedSections.includes(
   persisted?.section as ConfigCenterSection
@@ -60,6 +61,7 @@ const state: ConfigCenterUiState = { section: initialSection };
 let view: ConfigCenterViewModel | undefined;
 let requestCounter = 0;
 const pendingActions = new Map<string, PendingAction>();
+const modelPicker = new ModelPicker(app, () => state.modelOptions ?? [], () => !!state.busy);
 
 function render(): void {
   if (!view) {
@@ -98,7 +100,17 @@ function errorText(code: string): string {
     CONNECTION_TEST_FAILED: t.errorConnectionTest,
     CONNECTION_TEST_TIMEOUT: t.errorConnectionTimeout,
     MODEL_LIST_FAILED: t.errorModelList,
-    VAULT_DECRYPT_FAILED: t.errorVaultUnlock
+    BACKUP_DECRYPT_FAILED: t.errorBackupDecrypt,
+    BACKUP_INVALID: t.errorBackupInvalid,
+    BACKUP_UNSUPPORTED_VERSION: t.errorBackupVersion,
+    BACKUP_MISSING_KEYS: t.errorBackupMissingKeys,
+    BACKUP_EMPTY: t.errorBackupEmpty,
+    BACKUP_TOO_LARGE: t.errorBackupLarge,
+    BACKUP_READ_FAILED: t.errorBackupRead,
+    BACKUP_WRITE_FAILED: t.errorBackupWrite,
+    BACKUP_IMPORT_FAILED: t.errorBackupImport,
+    BACKUP_ROLLBACK_FAILED: t.errorBackupRollback,
+    BACKUP_PASSWORD_REQUIRED: t.errorBackupPassword
   };
   return errors[code] ?? t.requestFailed;
 }
@@ -117,20 +129,6 @@ function showDomNotice(tone: 'success' | 'error', text: string): void {
   notice.setAttribute('role', 'status');
   notice.textContent = text;
   layout.before(notice);
-}
-
-function updateModelOptions(models: string[]): void {
-  const datalist = document.getElementById('model-options');
-  if (!(datalist instanceof HTMLDataListElement)) {
-    return;
-  }
-  datalist.replaceChildren(
-    ...models.map((model) => {
-      const option = document.createElement('option');
-      option.value = model;
-      return option;
-    })
-  );
 }
 
 window.addEventListener('message', (event: MessageEvent<ConfigCenterResponse>) => {
@@ -163,11 +161,21 @@ window.addEventListener('message', (event: MessageEvent<ConfigCenterResponse>) =
   }
 
   view = response.data.view;
+  if (response.data.transfer) {
+    const result = response.data.transfer;
+    state.notice = result.status === 'cancelled' ? undefined : {
+      tone: 'success',
+      text: (pending?.kind === 'transfer.export' ? view.translations.exportComplete :
+        pending?.kind === 'transfer.recoverLegacy' ? view.translations.recoveryComplete : view.translations.importComplete)
+        .replace('{imported}', String(result.imported ?? 0))
+        .replace('{skipped}', String(result.skipped ?? 0))
+    };
+  }
   if (pending?.kind === 'models') {
     const models = response.data.models ?? [];
     state.modelOptions = models;
     setBusy(false);
-    updateModelOptions(models);
+    modelPicker.modelsLoaded();
     showDomNotice('success', view.translations.modelsLoaded);
     return;
   }
@@ -240,9 +248,6 @@ app.addEventListener('click', (event) => {
   const action = actionTarget.dataset.action;
   if (action !== 'delete-profile') {
     state.confirmDeleteProfileId = undefined;
-  }
-  if (action !== 'rebuild-vault') {
-    state.confirmRebuildVault = undefined;
   }
 
   if (action === 'navigate') {
@@ -347,31 +352,7 @@ app.addEventListener('click', (event) => {
     postRequest('profile.models', payload, { kind: 'models' });
     return;
   }
-  if (action === 'rebuild-vault') {
-    if (view.sync.status !== 'unlocked') {
-      return;
-    }
-    if (!state.confirmRebuildVault) {
-      state.confirmRebuildVault = true;
-      state.notice = undefined;
-      render();
-      return;
-    }
-    state.confirmRebuildVault = undefined;
-    postRequest(
-      'vault.rebuild',
-      {},
-      { kind: 'vault', refreshOnError: true }
-    );
-    return;
-  }
-  if (action === 'disable-vault') {
-    postRequest(
-      'vault.disable',
-      {},
-      { kind: 'vault', refreshOnError: true }
-    );
-  }
+
 });
 
 app.addEventListener('submit', (event) => {
@@ -422,21 +403,29 @@ app.addEventListener('submit', (event) => {
     return;
   }
 
-  if (form.id === 'vault-form') {
+  const transferTypes: Record<string, string> = {
+    'export-form': 'transfer.export',
+    'import-form': 'transfer.import',
+    'legacy-recovery-form': 'transfer.recoverLegacy'
+  };
+  const type = transferTypes[form.id];
+  if (type) {
     const data = new FormData(form);
     const password = String(data.get('password') ?? '');
-    const confirmPassword = String(data.get('confirmPassword') ?? '');
-    const mode = form.dataset.mode;
-    if (mode === 'enable' && password !== confirmPassword) {
+    if (!password.trim()) {
+      showDomNotice('error', view.translations.errorBackupPassword);
+      return;
+    }
+    if (type === 'transfer.export' && password !== String(data.get('confirmPassword') ?? '')) {
       showDomNotice('error', view.translations.passwordMismatch);
       return;
     }
-    postRequest(
-      mode === 'enable' ? 'vault.enable' : 'vault.unlock',
-      { password, remember: data.get('remember') === 'on' },
-      { kind: 'vault', refreshOnError: true }
-    );
+    form.reset();
+    state.notice = undefined;
+    app.querySelector('.notice')?.remove();
+    postRequest(type, { password }, { kind: type, refreshOnError: true });
   }
+
 });
 
 render();

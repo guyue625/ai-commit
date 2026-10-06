@@ -15,7 +15,7 @@ function createView(): ConfigCenterViewModel {
     activeProfileId: 'openai-1',
     providerCounts: { openai: 1, anthropic: 1 },
     settings: { language: 'English', systemPrompt: '' },
-    sync: { enabled: true, status: 'locked', revision: 3 },
+    transfer: { legacyAvailable: false },
     profiles: [
       {
         id: 'openai-1',
@@ -57,6 +57,17 @@ function createView(): ConfigCenterViewModel {
 }
 
 describe('Config Center browser view', () => {
+  it('offers an editable model picker without browser-native value filtering', () => {
+    const view = createView();
+    const html = renderConfigCenter(view, {
+      section: 'openai', editor: createEditorState(view.profiles[0])
+    });
+    assert.match(html, /name="model"[^>]*role="combobox"/);
+    assert.match(html, /aria-controls="model-options"/);
+    assert.match(html, /data-action="toggle-models"/);
+    assert.equal(html.includes('<datalist'), false);
+    assert.match(html, /value="deepseek-chat"/);
+  });
   it('keeps the actual active profile visible while viewing another provider', () => {
     const view = createView();
     const state: ConfigCenterUiState = { section: 'anthropic' };
@@ -118,16 +129,16 @@ describe('Config Center browser view', () => {
     assert.match(html, />Click again to confirm deletion<\/button>/);
   });
 
-  it('hides rebuild while locked and requires a second click while unlocked', () => {
-    const locked = renderConfigCenter(createView(), { section: 'sync' });
-    assert.equal(locked.includes('data-action="rebuild-vault"'), false);
-
+  it('renders import and export forms without old automatic sync controls', () => {
     const view = createView();
-    view.sync.status = 'unlocked';
-    const confirming = renderConfigCenter(view, {
-      section: 'sync',
-      confirmRebuildVault: true
-    });
-    assert.match(confirming, /Click again to overwrite synced keys/);
+    const html = renderConfigCenter(view, { section: 'transfer' });
+    assert.match(html, /id="export-form"/);
+    assert.match(html, /id="import-form"/);
+    assert.match(html, /type="password"/);
+    assert.equal(html.includes('Settings Sync'), false);
+    assert.equal(html.includes('vault-form'), false);
+    assert.equal(html.includes('legacy-recovery-form'), false);
+    view.transfer.legacyAvailable = true;
+    assert.match(renderConfigCenter(view, { section: 'transfer' }), /id="legacy-recovery-form"/);
   });
 });

@@ -1,3 +1,4 @@
+import { ConfigCenterTransferService, TransferResult } from '../src/transfer/profile-transfer-service';
 import assert from 'node:assert/strict';
 import { describe, it } from 'mocha';
 import { ActiveProfileResolver } from '../src/configuration/active-profile-resolver';
@@ -6,9 +7,7 @@ import { SecretRepository } from '../src/configuration/secret-repository';
 import { KeyValueStore, SecretStore } from '../src/configuration/storage';
 import {
   ConfigCenterController,
-  ConfigCenterSettingsService,
-  ConfigCenterVaultService,
-  ConfigCenterVaultState
+  ConfigCenterSettingsService
 } from '../src/webview/config-center-controller';
 import { parseWebviewRequest } from '../src/webview/messages';
 
@@ -60,40 +59,12 @@ class FakeSettingsService implements ConfigCenterSettingsService {
   }
 }
 
-class FakeVaultService implements ConfigCenterVaultService {
-  state: ConfigCenterVaultState = {
-    enabled: true,
-    status: 'locked',
-    revision: 2
-  };
+class FakeTransferService implements ConfigCenterTransferService {
   calls: string[] = [];
-
-  async getState() {
-    return { ...this.state };
-  }
-
-  async enable(_password: string, _remember: boolean): Promise<void> {
-    this.calls.push('enable');
-    this.state = { ...this.state, enabled: true, status: 'unlocked' };
-  }
-
-  async unlock(_password: string, _remember: boolean): Promise<void> {
-    this.calls.push('unlock');
-    this.state = { ...this.state, status: 'unlocked' };
-  }
-
-  async rebuild(): Promise<void> {
-    this.calls.push('rebuild');
-  }
-
-  async disable(): Promise<void> {
-    this.calls.push('disable');
-    this.state = { enabled: false, status: 'disabled', revision: 2 };
-  }
-
-  async secretsChanged(): Promise<void> {
-    this.calls.push('secretsChanged');
-  }
+  async getState() { return { legacyAvailable: true }; }
+  async export(_password: string): Promise<TransferResult> { this.calls.push('export'); return { status: 'completed' }; }
+  async import(_password: string): Promise<TransferResult> { this.calls.push('import'); return { status: 'completed', imported: 1, skipped: 0 }; }
+  async recoverLegacy(_password: string): Promise<TransferResult> { this.calls.push('recoverLegacy'); return { status: 'completed', imported: 1, skipped: 0 }; }
 }
 
 class FakeConnectionTester {
@@ -107,12 +78,12 @@ class FakeConnectionTester {
     return [...this.models];
   }
 
-  async testConnection(): Promise<{ latencyMs: number }> {
+  async testConnection(): Promise<{ latencyMs: number; method: 'models' }> {
     this.testCalls += 1;
     if (this.testError) {
       throw this.testError;
     }
-    return { latencyMs: 42 };
+    return { latencyMs: 42, method: 'models' };
   }
 }
 
@@ -134,14 +105,14 @@ function createControllerHarness() {
   );
   const connectionTester = new FakeConnectionTester();
   const settings = new FakeSettingsService();
-  const vault = new FakeVaultService();
+  const transfer = new FakeTransferService();
   const controller = new ConfigCenterController({
     profiles,
     secrets,
     activeProfiles,
     connectionTester,
     settings,
-    vault,
+    transfer,
     locale: 'en'
   });
 
@@ -152,7 +123,7 @@ function createControllerHarness() {
     activeProfiles,
     connectionTester,
     settings,
-    vault
+    transfer
   };
 }
 
@@ -177,6 +148,14 @@ async function createOpenAIProfile(
 }
 
 describe('webview messages', () => {
+  it('accepts encrypted file transfer requests and rejects paths and old sync actions', () => {
+    for (const type of ['transfer.export', 'transfer.import', 'transfer.recoverLegacy']) {
+      const request = { type, requestId: 'transfer-1', payload: { password: 'backup password' } };
+      assert.deepEqual(parseWebviewRequest(request), request);
+      assert.throws(() => parseWebviewRequest({ ...request, payload: { password: ' ', path: '/tmp/file' } }), /WEBVIEW_MESSAGE_INVALID/);
+    }
+    assert.throws(() => parseWebviewRequest({ type: 'vault.enable', requestId: 'old', payload: { password: 'old', remember: true } }), /WEBVIEW_MESSAGE_INVALID/);
+  });
   it('accepts a valid OpenAI profile creation request', () => {
     const message = {
       type: 'profile.create',
@@ -200,11 +179,11 @@ describe('webview messages', () => {
     assert.deepEqual(parseWebviewRequest(message), message);
   });
 
-  it('accepts a vault unlock request', () => {
+  it('accepts a file import request', () => {
     const message = {
-      type: 'vault.unlock',
+      type: 'transfer.import',
       requestId: 'request-2',
-      payload: { password: 'sync password', remember: true }
+      payload: { password: 'backup password' }
     };
 
     assert.deepEqual(parseWebviewRequest(message), message);
@@ -359,11 +338,11 @@ describe('ConfigCenterController', () => {
           return [];
         },
         async testConnection() {
-          return { latencyMs: 0 };
+          return { latencyMs: 0, method: 'models' };
         }
       },
       settings: new FakeSettingsService(),
-      vault: new FakeVaultService(),
+      transfer: new FakeTransferService(),
       locale: 'en'
     });
 
@@ -380,7 +359,7 @@ describe('ConfigCenterController', () => {
     assert.equal(response.data.view.profiles[0].keyHint, 'sk-••••A9F');
     assert.equal('apiKey' in response.data.view.profiles[0], false);
     assert.equal(response.data.view.activeProfileId, 'profile-1');
-    assert.equal(response.data.view.sync.status, 'locked');
+    assert.equal(response.data.view.transfer.legacyAvailable, true);
     assert.equal(
       JSON.stringify(response).includes('sk-secret-A9F'),
       false
@@ -417,7 +396,7 @@ describe('ConfigCenterController', () => {
       harness.activeProfiles.getWorkspaceActiveProfileId(),
       undefined
     );
-    assert.deepEqual(harness.vault.calls, ['secretsChanged']);
+    assert.deepEqual(harness.transfer.calls, []);
     assert.equal(
       JSON.stringify(response).includes('sk-ant-company-7K2P'),
       false
@@ -471,7 +450,7 @@ describe('ConfigCenterController', () => {
       await harness.secrets.getApiKey(profile.id),
       'sk-new-NEW2'
     );
-    assert.deepEqual(harness.vault.calls, ['secretsChanged']);
+    assert.deepEqual(harness.transfer.calls, []);
     assert.equal(JSON.stringify(response).includes('sk-new-NEW2'), false);
   });
 
@@ -571,7 +550,7 @@ describe('ConfigCenterController', () => {
     assert.equal(JSON.stringify(response).includes('sk-unsaved-secret'), false);
   });
 
-  it('tests then activates a profile as the synced global default', async () => {
+  it('tests then activates a profile as the device-wide default', async () => {
     const harness = createControllerHarness();
     const profile = await createOpenAIProfile(harness);
 
@@ -660,47 +639,20 @@ describe('ConfigCenterController', () => {
     assert.equal(response.ok, true);
     assert.equal(await harness.profiles.get(profile.id), undefined);
     assert.equal(await harness.secrets.getApiKey(profile.id), undefined);
-    assert.deepEqual(harness.vault.calls, ['secretsChanged']);
+    assert.deepEqual(harness.transfer.calls, []);
   });
 
-  it('routes encrypted vault enable, unlock, rebuild, and disable actions', async () => {
+  it('routes native encrypted file operations and returns only safe counts', async () => {
     const harness = createControllerHarness();
-    harness.vault.state = { enabled: false, status: 'disabled' };
-
-    const enable = await harness.controller.handle({
-      type: 'vault.enable',
-      requestId: 'vault-enable-1',
-      payload: { password: 'sync password', remember: true }
-    });
-    const unlock = await harness.controller.handle({
-      type: 'vault.unlock',
-      requestId: 'vault-unlock-1',
-      payload: { password: 'sync password', remember: false }
-    });
-    const rebuild = await harness.controller.handle({
-      type: 'vault.rebuild',
-      requestId: 'vault-rebuild-1',
-      payload: {}
-    });
-    const disable = await harness.controller.handle({
-      type: 'vault.disable',
-      requestId: 'vault-disable-1',
-      payload: {}
-    });
-
-    assert.equal(enable.ok, true);
-    assert.equal(unlock.ok, true);
-    assert.equal(rebuild.ok, true);
-    assert.equal(disable.ok, true);
-    assert.deepEqual(harness.vault.calls, [
-      'enable',
-      'unlock',
-      'rebuild',
-      'disable'
-    ]);
-    if (disable.ok) {
-      assert.equal(disable.data.view.sync.status, 'disabled');
+    for (const operation of ['export', 'import', 'recoverLegacy']) {
+      const response = await harness.controller.handle({
+        type: `transfer.${operation}`, requestId: operation, payload: { password: 'backup password' }
+      });
+      assert.equal(response.ok, true);
+      assert.equal(JSON.stringify(response).includes('backup password'), false);
+      if (response.ok) { assert.equal(response.data.transfer?.status, 'completed'); }
     }
+    assert.deepEqual(harness.transfer.calls, ['export', 'import', 'recoverLegacy']);
   });
 
   it('updates the existing language and custom prompt settings', async () => {

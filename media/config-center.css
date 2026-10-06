@@ -324,7 +324,7 @@ dd {
 .profile-card,
 .editor-panel,
 .settings-card,
-.sync-card,
+.transfer-card,
 .empty-state {
   border: 1px solid var(--vscode-panel-border);
   background: var(--vscode-editorWidget-background);
@@ -479,23 +479,26 @@ summary:focus-visible {
 
 .editor-panel,
 .settings-card,
-.sync-card {
+.transfer-card {
   padding: 18px;
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 15px;
 }
 
 .field {
   display: grid;
+  align-content: start;
   gap: 6px;
   min-width: 0;
 }
 
-.field > span {
+.field > span,
+.field > label {
   font-weight: 600;
 }
 
@@ -512,6 +515,68 @@ summary:focus-visible {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
+}
+
+.model-picker {
+  position: relative;
+  min-width: 0;
+}
+
+.model-picker input {
+  padding-right: 32px;
+}
+
+.model-picker__toggle {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  bottom: 1px;
+  width: 30px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--vscode-input-foreground);
+  cursor: pointer;
+}
+
+.model-picker__list {
+  position: absolute;
+  z-index: 10;
+  top: calc(100% + 3px);
+  left: 0;
+  right: 0;
+  max-height: 240px;
+  overflow-y: auto;
+  border: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border));
+  border-radius: 2px;
+  background: var(--vscode-dropdown-background, var(--vscode-editor-background));
+  color: var(--vscode-dropdown-foreground, var(--vscode-foreground));
+  box-shadow: 0 4px 12px var(--vscode-widget-shadow, #0004);
+}
+
+.model-picker__option,
+.model-picker__empty {
+  padding: 7px 10px;
+  overflow-wrap: anywhere;
+}
+
+.model-picker__option {
+  cursor: pointer;
+}
+
+.model-picker__option[aria-selected="true"] {
+  color: var(--vscode-textLink-foreground);
+}
+
+.model-picker__option:hover,
+.model-picker__option.is-highlighted {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+}
+
+.model-picker__empty {
+  color: var(--vscode-descriptionForeground);
+  line-height: 1.5;
 }
 
 input,
@@ -562,39 +627,21 @@ textarea::placeholder {
   color: var(--vscode-editorWarning-foreground, #cca700) !important;
 }
 
-.sync-card {
+.transfer-card {
   display: grid;
   gap: 20px;
 }
 
-.sync-card__status {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--vscode-panel-border);
-}
-
-.sync-card__status p {
-  margin: 4px 0 0;
-  color: var(--vscode-descriptionForeground);
-}
-
-.vault-icon {
+.transfer-grid {
   display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border: 1px solid var(--vscode-focusBorder);
-  color: var(--vscode-focusBorder);
-  font-size: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 20px;
+  align-items: start;
 }
 
-.vault-form {
-  display: grid;
-  max-width: 540px;
-  gap: 14px;
-}
+.transfer-card h3, .transfer-card p { margin: 0; }
+.transfer-card p { color: var(--vscode-descriptionForeground); line-height: 1.6; }
+.transfer-card--legacy { margin-top: 20px; }
 
 .check-field {
   display: inline-flex;

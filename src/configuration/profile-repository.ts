@@ -9,8 +9,8 @@ import {
 } from './profile-types';
 import { KeyValueStore } from './storage';
 
-export const PROFILE_CATALOG_KEY = 'aiCommit.profileCatalog.v1';
-export const PROFILE_CATALOG_BACKUP_KEY = 'aiCommit.profileCatalog.localBackup.v1';
+export const PROFILE_CATALOG_KEY = 'aiCommit.profileCatalog.local.v2';
+export const PROFILE_CATALOG_BACKUP_KEY = 'aiCommit.profileCatalog.localBackup.v2';
 
 function clone<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
@@ -64,6 +64,15 @@ export class ProfileRepository {
   ) {}
 
   async getCatalog(): Promise<ProfileCatalog> {
+    if (!this.store.get<ProfileCatalog>(PROFILE_CATALOG_KEY)) {
+      const localBackup = this.store.get<ProfileCatalog>(PROFILE_CATALOG_BACKUP_KEY);
+      const legacy = this.store.get<ProfileCatalog>('aiCommit.profileCatalog.v1');
+      const backup = this.store.get<ProfileCatalog>('aiCommit.profileCatalog.localBackup.v1');
+      const source = backup && backup.profiles.length > 0 &&
+        (!legacy || legacy.profiles.length === 0 || backup.revision > legacy.revision)
+        ? backup : legacy;
+      await this.save({ ...clone(localBackup ?? source ?? EMPTY_PROFILE_CATALOG), encryptedSyncEnabled: false, vaultRevision: undefined });
+    }
     const synced = this.store.get<ProfileCatalog>(
       PROFILE_CATALOG_KEY,
       EMPTY_PROFILE_CATALOG
@@ -152,17 +161,6 @@ export class ProfileRepository {
       fail('PROFILE_NOT_FOUND');
     }
     catalog.defaultProfileId = profileId;
-    catalog.revision += 1;
-    await this.save(catalog);
-  }
-
-  async setEncryptedSyncState(
-    enabled: boolean,
-    vaultRevision?: number
-  ): Promise<void> {
-    const catalog = await this.getCatalog();
-    catalog.encryptedSyncEnabled = enabled;
-    catalog.vaultRevision = enabled ? vaultRevision : undefined;
     catalog.revision += 1;
     await this.save(catalog);
   }

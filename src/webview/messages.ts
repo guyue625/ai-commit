@@ -47,19 +47,9 @@ export type WebviewRequest =
       payload: { language?: string; systemPrompt?: string };
     }
   | {
-      type: 'vault.enable';
+      type: 'transfer.export' | 'transfer.import' | 'transfer.recoverLegacy';
       requestId: string;
-      payload: { password: string; remember: boolean };
-    }
-  | {
-      type: 'vault.unlock';
-      requestId: string;
-      payload: { password: string; remember: boolean };
-    }
-  | {
-      type: 'vault.disable' | 'vault.rebuild';
-      requestId: string;
-      payload: Record<string, never>;
+      payload: { password: string };
     };
 
 const SIMPLE_PROFILE_ACTIONS = new Set([
@@ -153,7 +143,7 @@ function validateAnthropicOptions(
   );
 }
 
-function validateProfileForm(payload: unknown): payload is ProfileFormPayload {
+export function validateProfileForm(payload: unknown): payload is ProfileFormPayload {
   if (
     !isPlainObject(payload) ||
     !hasOnlyKeys(payload, [
@@ -283,25 +273,15 @@ export function parseWebviewRequest(input: unknown): WebviewRequest {
     return input as WebviewRequest;
   }
 
-  if (input.type === 'vault.enable' || input.type === 'vault.unlock') {
-    if (
-      !hasOnlyKeys(input.payload, ['password', 'remember']) ||
-      !isNonEmptyString(input.payload.password) ||
-      !isBoolean(input.payload.remember)
-    ) {
+  if (['transfer.export', 'transfer.import', 'transfer.recoverLegacy'].includes(input.type)) {
+    if (!hasOnlyKeys(input.payload, ['password']) || !isNonEmptyString(input.payload.password)) {
       return invalid();
     }
     return input as WebviewRequest;
   }
 
-  if (
-    input.type === 'ready' ||
-    input.type === 'vault.disable' ||
-    input.type === 'vault.rebuild'
-  ) {
-    if (Object.keys(input.payload).length !== 0) {
-      return invalid();
-    }
+  if (input.type === 'ready') {
+    if (Object.keys(input.payload).length !== 0) { return invalid(); }
     return input as WebviewRequest;
   }
 

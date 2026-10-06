@@ -40,6 +40,32 @@ const openAiInput = {
 };
 
 describe('ProfileRepository', () => {
+  it('recovers the v2 backup before considering legacy migration when the primary is missing', async () => {
+    const store = new MemoryStore();
+    const repository = new ProfileRepository(store);
+    const profile = await repository.create(openAiInput);
+    store.values.delete(PROFILE_CATALOG_KEY);
+    assert.deepEqual((await repository.getCatalog()).profiles, [profile]);
+  });
+  it('migrates the newest old catalog once and ignores later legacy sync writes', async () => {
+    const source = new ProfileRepository(new MemoryStore(), () => 1000, () => 'legacy-profile');
+    const profile = await source.create(openAiInput);
+    await source.setDefault(profile.id);
+    const backup = { ...await source.getCatalog(), encryptedSyncEnabled: true, vaultRevision: 7 };
+    const store = new MemoryStore();
+    store.values.set('aiCommit.profileCatalog.v1', { ...backup, profiles: [], revision: 0 });
+    store.values.set('aiCommit.profileCatalog.localBackup.v1', backup);
+    const repository = new ProfileRepository(store);
+    const migrated = await repository.getCatalog();
+    assert.deepEqual(migrated.profiles, [profile]);
+    assert.equal(migrated.defaultProfileId, profile.id);
+    assert.equal(migrated.encryptedSyncEnabled, false);
+    assert.equal(migrated.vaultRevision, undefined);
+    await repository.setDefault(undefined);
+    await repository.delete(profile.id);
+    store.values.set('aiCommit.profileCatalog.v1', { ...backup, revision: 999 });
+    assert.deepEqual((await repository.getCatalog()).profiles, []);
+  });
   it('creates a normalized profile and increments the catalog revision', async () => {
     const repository = new ProfileRepository(
       new MemoryStore(),
@@ -161,22 +187,7 @@ describe('ProfileRepository', () => {
     );
   });
 
-  it('tracks encrypted sync state and vault revision in the synced catalog', async () => {
-    const repository = new ProfileRepository(new MemoryStore());
-
-    await repository.setEncryptedSyncState(true, 4);
-    const enabled = await repository.getCatalog();
-    assert.equal(enabled.encryptedSyncEnabled, true);
-    assert.equal(enabled.vaultRevision, 4);
-
-    await repository.setEncryptedSyncState(false);
-    const disabled = await repository.getCatalog();
-    assert.equal(disabled.encryptedSyncEnabled, false);
-    assert.equal(disabled.vaultRevision, undefined);
-    assert.equal(disabled.revision, 2);
-  });
-
-  it('recovers a local catalog backup when sync delivers an empty older catalog', async () => {
+  it('recovers a local catalog backup when the primary catalog is empty and older', async () => {
     const store = new MemoryStore();
     const repository = new ProfileRepository(
       store,

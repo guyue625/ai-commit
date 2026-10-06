@@ -8,7 +8,6 @@ import {
 } from './configuration/configuration-adapters';
 import { LegacyConfigurationMigrator } from './configuration/legacy-configuration-migrator';
 import {
-  PROFILE_CATALOG_KEY,
   ProfileRepository
 } from './configuration/profile-repository';
 import { SecretRepository } from './configuration/secret-repository';
@@ -18,10 +17,8 @@ import {
 } from './configuration/storage';
 import { Logger } from './logger';
 import { ProviderConnectionTester } from './providers/provider-connection-tester';
-import {
-  ENCRYPTED_VAULT_KEY,
-  EncryptedVaultCoordinator
-} from './sync/encrypted-vault-coordinator';
+import { ProfileTransferService } from './transfer/profile-transfer-service';
+import { VsCodeTransferFiles } from './transfer/vscode-transfer-files';
 import { ConfigCenterController } from './webview/config-center-controller';
 import { ConfigCenterPanel } from './webview/config-center-panel';
 
@@ -59,7 +56,7 @@ export class ExtensionServices implements vscode.Disposable {
   readonly activeProfiles: ActiveProfileResolver;
   readonly connectionTester: ProviderConnectionTester;
   readonly settings: ConfigCenterSettingsAdapter;
-  readonly vault: EncryptedVaultCoordinator;
+  readonly transfer: ProfileTransferService;
   readonly migrator: LegacyConfigurationMigrator;
   readonly configCenter: ConfigCenterPanel;
 
@@ -69,10 +66,7 @@ export class ExtensionServices implements vscode.Disposable {
     const localSecrets = new SecretStorageStore(context.secrets);
     const configuration = new VsCodeConfigurationStore();
 
-    context.globalState.setKeysForSync([
-      PROFILE_CATALOG_KEY,
-      ENCRYPTED_VAULT_KEY
-    ]);
+    context.globalState.setKeysForSync([]);
 
     this.profiles = new ProfileRepository(globalStore);
     this.secrets = new SecretRepository(localSecrets);
@@ -83,11 +77,8 @@ export class ExtensionServices implements vscode.Disposable {
     );
     this.connectionTester = new ProviderConnectionTester();
     this.settings = new ConfigCenterSettingsAdapter(configuration);
-    this.vault = new EncryptedVaultCoordinator(
-      this.profiles,
-      this.secrets,
-      globalStore,
-      localSecrets
+    this.transfer = new ProfileTransferService(
+      this.profiles, this.secrets, new VsCodeTransferFiles(), globalStore
     );
     this.migrator = new LegacyConfigurationMigrator(
       this.profiles,
@@ -100,7 +91,7 @@ export class ExtensionServices implements vscode.Disposable {
       activeProfiles: this.activeProfiles,
       connectionTester: this.connectionTester,
       settings: this.settings,
-      vault: this.vault,
+      transfer: this.transfer,
       locale: vscode.env.language
     });
     this.configCenter = new ConfigCenterPanel(context.extensionUri, controller);
@@ -112,7 +103,7 @@ export class ExtensionServices implements vscode.Disposable {
     } catch (error) {
       Logger.warn('Legacy configuration migration was not completed:', error);
     }
-    await this.vault.initialize();
+    await this.profiles.getCatalog();
   }
 
   async openConfigCenter(_reason?: string): Promise<void> {
@@ -121,7 +112,6 @@ export class ExtensionServices implements vscode.Disposable {
 
   dispose(): void {
     this.configCenter.dispose();
-    this.vault.dispose();
   }
 }
 

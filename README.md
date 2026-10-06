@@ -28,7 +28,7 @@ Use OpenAI / Azure OpenAI / DeepSeek / Grok / Gemini / Claude (Anthropic) API to
 - 🤯 Support generating commit messages based on git diffs using OpenAI / Azure OpenAI / DeepSeek / Grok / Gemini / Claude (Anthropic) API.
 - 🎛️ Manage multiple named OpenAI and Anthropic channel profiles in a native VS Code Config Center.
 - 🔐 Keep full API keys in VS Code SecretStorage and show only masked key hints in the UI.
-- ☁️ Sync profile metadata through Settings Sync, with optional end-to-end encrypted key sync.
+- 📦 Import and export channel profiles and API keys using password-encrypted files.
 - 🧠 Support OpenAI Responses API with configurable reasoning effort and output verbosity.
 - 🗺️ Support multi-language commit messages.
 - 😜 Support adding Gitmoji.
@@ -65,9 +65,9 @@ The Config Center is the recommended way to configure OpenAI and Anthropic:
 - Save multiple named profiles for each provider.
 - Use a custom Base URL for both OpenAI-compatible and Anthropic-compatible channels.
 - See the exact active provider, profile name, Base URL, model, and masked key hint at all times.
-- View a different provider without changing the active profile. Only **Activate** or **Save and Activate** switches the current workspace.
-- Fetch available models explicitly, or enter a model manually when an endpoint does not support model listing.
-- Keep profile metadata globally available while selecting a different active profile per workspace.
+- View a different provider without changing the active profile. Only **Activate** or **Save and Activate** changes the active profile.
+- Fetch available models explicitly, or enter a model manually when an endpoint does not support model listing. Opening the model picker shows the full fetched list without clearing the current value; typing filters suggestions. Use the arrow keys and Enter to select, or Escape to close.
+- Keep profiles and the active selection available across projects on this device.
 
 Full keys are stored in VS Code SecretStorage. They are never written to `settings.json`, returned to the Webview, or shown in logs.
 
@@ -75,9 +75,19 @@ Full keys are stored in VS Code SecretStorage. They are never written to `settin
 
 The status distinguishes **API check** time from **Model check** time. An API check confirms model-list access and model presence; it does not verify generation permissions or measure generation speed. A model check includes the preceding API query and model processing. Hover over the status for details, and retest existing profiles to replace historical timings. Actual generation speed still depends on the channel, queueing, and model.
 
-### Encrypted key sync
+### Import / Export
 
-Profile metadata participates in VS Code Settings Sync. Key sync is optional and disabled by default. When enabled, all local profile keys are encrypted with scrypt and AES-256-GCM before the encrypted vault is placed in Settings Sync. The sync password is never uploaded. On another device, enter that password once to restore all keys to that device's SecretStorage.
+Open **Import / Export** in the Config Center:
+
+1. On the source device, enter and confirm a file password, then choose **Export Encrypted File** to save an `.aicommit` file.
+2. Copy the file to the destination device, enter the same password, and choose **Import Encrypted File**.
+3. Test and activate the channel you want to use after importing.
+
+The entire file is encrypted with scrypt and AES-256-GCM. It contains all OpenAI and Anthropic channel settings and API keys, excluding general settings, custom prompts, legacy Gemini configuration, and connection-test history. Passwords are not stored and cannot be reset; keep the file password safe.
+
+Import skips existing profiles by ID or by provider and name, preserves existing keys, and keeps the active selection. Invalid passwords and damaged files cause no writes; storage failures trigger rollback and report the outcome. Cancelling a dialog leaves configuration unchanged. Export requires a local key for every profile.
+
+Channel profiles and keys no longer participate in Settings Sync. Upgrades preserve local configuration. When local keys are missing and an old vault is still available, **Recover Old Keys** restores only missing keys using the previous sync password, so they can be exported in the new format. The old vault and existing local keys are preserved.
 
 ### Prompt and legacy compatibility
 
