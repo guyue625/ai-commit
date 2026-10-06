@@ -13,6 +13,7 @@ import {
   RuntimeProviderConfig,
   toRuntimeProviderConfig
 } from '../providers/runtime-provider-config';
+import { ConnectionTestResult } from '../providers/provider-connection-tester';
 import { getTranslations, TranslationDictionary } from './i18n';
 import {
   parseWebviewRequest,
@@ -52,7 +53,7 @@ export interface ConfigCenterConnectionTester {
   testConnection(
     config: RuntimeProviderConfig,
     signal?: AbortSignal
-  ): Promise<{ latencyMs: number }>;
+  ): Promise<ConnectionTestResult>;
 }
 
 export interface ConfigCenterProfileView {
@@ -327,18 +328,22 @@ export class ConfigCenterController {
         lastTest: {
           status: 'success',
           testedAt: Date.now(),
-          latencyMs: result.latencyMs
+          latencyMs: result.latencyMs,
+          method: result.method
         }
       });
-    } catch {
+    } catch (error) {
+      const code = error instanceof Error && error.message === 'CONNECTION_TEST_TIMEOUT'
+        ? 'CONNECTION_TEST_TIMEOUT'
+        : 'CONNECTION_TEST_FAILED';
       await profiles.update(profileId, {
         lastTest: {
           status: 'failure',
           testedAt: Date.now(),
-          message: 'CONNECTION_TEST_FAILED'
+          message: code
         }
       });
-      throw new Error('CONNECTION_TEST_FAILED');
+      throw new Error(code);
     }
   }
 

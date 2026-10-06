@@ -2,6 +2,7 @@ export type ProviderType = 'openai' | 'anthropic';
 export type OpenAIApiType = 'completion' | 'response';
 export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high';
 export type TextVerbosity = 'low' | 'medium' | 'high';
+export type ConnectionTestMethod = 'models' | 'generation';
 
 export interface OpenAIProfileOptions {
   apiType: OpenAIApiType;
@@ -19,6 +20,7 @@ export interface ConnectionTestState {
   status: 'success' | 'failure';
   testedAt: number;
   latencyMs?: number;
+  method?: ConnectionTestMethod;
   message?: string;
 }
 

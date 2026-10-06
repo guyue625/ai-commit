@@ -96,6 +96,7 @@ function errorText(code: string): string {
     MISSING_LOCAL_SECRET: t.errorMissingKey,
     PROFILE_IS_ACTIVE: t.errorActiveProfile,
     CONNECTION_TEST_FAILED: t.errorConnectionTest,
+    CONNECTION_TEST_TIMEOUT: t.errorConnectionTimeout,
     MODEL_LIST_FAILED: t.errorModelList,
     VAULT_DECRYPT_FAILED: t.errorVaultUnlock
   };
@@ -148,7 +149,10 @@ window.addEventListener('message', (event: MessageEvent<ConfigCenterResponse>) =
       showDomNotice('error', text);
       return;
     }
-    if (response.error.code === 'CONNECTION_TEST_FAILED') {
+    if (
+      response.error.code === 'CONNECTION_TEST_FAILED' ||
+      response.error.code === 'CONNECTION_TEST_TIMEOUT'
+    ) {
       state.editor = undefined;
     }
     render();

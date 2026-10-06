@@ -141,16 +141,26 @@ function renderProfileStatus(
     )}</span>`;
   }
   if (profile.lastTest?.status === 'success') {
+    const method = profile.lastTest.method;
+    const label = method === 'models'
+      ? t.apiCheck
+      : method === 'generation' ? t.modelCheck : t.latency;
+    const hint = method === 'models'
+      ? t.apiCheckHint
+      : method === 'generation' ? t.modelCheckHint : t.legacyCheckHint;
     const latency =
       profile.lastTest.latencyMs === undefined
         ? ''
-        : ` · ${profile.lastTest.latencyMs} ms`;
-    return `<span class="status status--success">${escapeHtml(
+        : ` · ${label} ${profile.lastTest.latencyMs} ms`;
+    return `<span class="status status--success" title="${escapeHtml(hint)}">${escapeHtml(
       t.connected
     )}${escapeHtml(latency)}</span>`;
   }
   if (profile.lastTest?.status === 'failure') {
-    return `<span class="status status--danger">${escapeHtml(
+    const hint = profile.lastTest.message === 'CONNECTION_TEST_TIMEOUT'
+      ? t.errorConnectionTimeout
+      : t.errorConnectionTest;
+    return `<span class="status status--danger" title="${escapeHtml(hint)}">${escapeHtml(
       t.connectionFailed
     )}</span>`;
   }

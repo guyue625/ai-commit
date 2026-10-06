@@ -71,6 +71,10 @@ The Config Center is the recommended way to configure OpenAI and Anthropic:
 
 Full keys are stored in VS Code SecretStorage. They are never written to `settings.json`, returned to the Webview, or shown in logs.
 
+**Test Connection** first queries the model list with the profile's key and checks for the selected model, avoiding a generation request when possible. If listing is unsupported or the model is omitted, the test falls back to a minimal request using the configured generation API. Checks have a 30-second total timeout and do not automatically retry.
+
+The status distinguishes **API check** time from **Model check** time. An API check confirms model-list access and model presence; it does not verify generation permissions or measure generation speed. A model check includes the preceding API query and model processing. Hover over the status for details, and retest existing profiles to replace historical timings. Actual generation speed still depends on the channel, queueing, and model.
+
 ### Encrypted key sync
 
 Profile metadata participates in VS Code Settings Sync. Key sync is optional and disabled by default. When enabled, all local profile keys are encrypted with scrypt and AES-256-GCM before the encrypted vault is placed in Settings Sync. The sync password is never uploaded. On another device, enter that password once to restore all keys to that device's SecretStorage.
